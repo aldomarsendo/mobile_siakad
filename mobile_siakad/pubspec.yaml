@@ -17,3 +17,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/
+  #   - assets/images/icons/google.png
+
+
+  # fonts:
+  #   - family: Poppins
+  #     fonts:
+  #       - asset: assets/fonts/Ubuntu-Regular.ttf
+  #       - asset: assets/fonts/Ubuntu-Bold.ttf
+
