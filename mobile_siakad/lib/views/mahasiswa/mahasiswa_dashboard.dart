@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-class DashboardPage extends StatelessWidget {
+class MahasiswaDashboardPage extends StatelessWidget {
   final Color primaryBlue = Color(0xFF133B7A);
 
-  DashboardPage({super.key});
+  MahasiswaDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {

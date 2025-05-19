@@ -6,36 +6,63 @@ class JadwalKuliahPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: SafeArea(
+      appBar: AppBar(
+        leading: BackButton(color: Colors.black87),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Jadwal Kuliah',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+        ),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: primaryBlue,
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.school_outlined, color: Colors.blue),
+                SizedBox(width: 8),
+                Text(
+                  'Jadwal Kuliah saya',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                    child: Icon(Icons.arrow_back, color: Colors.white),
-                  ),
-                  SizedBox(width: 16),
-                  Text(
-                    'Jadwal Kuliah',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+              ],
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: 'Tahun Ajaran',
+                      border: OutlineInputBorder(),
                     ),
+                    value: '2024 / 2025',
+                    items: ['2023 / 2024', '2024 / 2025']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (_) {},
                   ),
-                ],
-              ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: 'Semester',
+                      border: OutlineInputBorder(),
+                    ),
+                    value: 'Genap',
+                    items: ['Ganjil', 'Genap']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (_) {},
+                  ),
+                ),
+              ],
             ),
 
             SizedBox(height: 24),
@@ -92,8 +119,8 @@ class JadwalKuliahPage extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: Color(0xFF133B7A),
+        borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
@@ -109,8 +136,8 @@ class JadwalKuliahPage extends StatelessWidget {
           Text(
             time,
             style: TextStyle(
-              color: primaryBlue,
-              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontWeight: FontWeight.normal,
             ),
           ),
           SizedBox(height: 6),
@@ -118,20 +145,20 @@ class JadwalKuliahPage extends StatelessWidget {
             subject,
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              fontWeight: FontWeight.normal,
+              color: Colors.white,
             ),
           ),
           SizedBox(height: 4),
           Row(
             children: [
-              Icon(Icons.location_on, size: 16, color: Colors.grey),
+              Icon(Icons.location_on, size: 16, color: Colors.white),
               SizedBox(width: 4),
               Text(
                 room,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[700],
+                  color: Colors.white,
                 ),
               ),
             ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../mahasiswa/dashboard.dart'; // Untuk navigasi ke DashboardPage
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart';
+import '../mahasiswa/mahasiswa_dashboard.dart'; // Untuk navigasi ke DashboardPage
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,7 +19,7 @@ class _LoginPageState extends State<LoginPage> {
     // Dummy login: navigasi ke dashboard
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => DashboardPage()),
+      MaterialPageRoute(builder: (context) => MahasiswaDashboardPage()),
     );
   }
 
@@ -35,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
               Icon(Icons.school, size: 80, color: primaryBlue),
               SizedBox(height: 16),
               Text(
-                'Login Mahasiswa',
+                'Login',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

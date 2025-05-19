@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_siakad/views/mahasiswa/dashboard.dart';
-import 'views/mahasiswa/jadwal_kuliah.dart'; // Sesuaikan nama file
+import 'package:mobile_siakad/views/auth/login.dart';
+import 'package:mobile_siakad/views/dosen/dosen_dashboard.dart';
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart';
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_frs.dart';
+import 'views/mahasiswa/mahasiswa_jadwal.dart';
+import 'views/mahasiswa/mahasiswa_nilai.dart';
+import 'views/dosen/dosen_jadwal.dart';
+// import 'views/dosen/dosen_nilai.dart';
+import 'views/dosen/dosen_dashboard.dart';
 
 void main() {
   runApp(MyApp());
@@ -12,7 +19,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Jadwal Kuliah',
       debugShowCheckedModeBanner: false,
-      home: DashboardPage(), // Jalankan halaman ini langsung
+      home: MahasiswaJadwalPage(), // Jalankan halaman ini langsung
     );
   }
 }
