@@ -90,7 +90,7 @@ class MahasiswaJadwalPage extends StatelessWidget {
             // Card Mata Kuliah
             Expanded(
               child: ListView(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+                // Hapus padding di sini agar ikut padding parent
                 children: [
                   _classCard(
                     time: '07:00 - 09:10',
@@ -118,6 +118,7 @@ class MahasiswaJadwalPage extends StatelessWidget {
     required String room,
   }) {
     return Container(
+      width: double.infinity, // Tambahkan ini agar card full lebar parent
       decoration: BoxDecoration(
         color: Color(0xFF133B7A),
         borderRadius: BorderRadius.circular(15),
@@ -129,7 +130,7 @@ class MahasiswaJadwalPage extends StatelessWidget {
           ),
         ],
       ),
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(16), // Ubah padding agar isi card lebih rapi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'mahasiswa_jadwal.dart';
+import 'mahasiswa_nilai.dart';
+import 'mahasiswa_frs.dart';
 
 class MahasiswaDashboardPage extends StatelessWidget {
   final Color primaryBlue = Color(0xFF133B7A);
@@ -17,8 +20,7 @@ class MahasiswaDashboardPage extends StatelessWidget {
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: primaryBlue,
-                borderRadius: BorderRadius.only(
-                ),
+                borderRadius: BorderRadius.only(),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,8 +74,6 @@ class MahasiswaDashboardPage extends StatelessWidget {
             ),
 
             // Menu Akademik
-                      // ...existing code...
-            // Menu Akademik
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
@@ -97,16 +97,15 @@ class MahasiswaDashboardPage extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _menuButton(Icons.calendar_today, "Jadwal", primaryBlue),
-                        _menuButton(Icons.grade, "Nilai", primaryBlue),
-                        _menuButton(Icons.file_copy, "FRS", primaryBlue),
+                        _menuButton(context, Icons.calendar_today, "Jadwal", primaryBlue, MahasiswaJadwalPage()),
+                        _menuButton(context, Icons.grade, "Nilai", primaryBlue, MahasiswaNilaiPage()),
+                        _menuButton(context, Icons.file_copy, "FRS", primaryBlue, MahasiswaFrsPage()),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-            // ...existing code...
             SizedBox(height: 16),
 
             // Jadwal Kuliah Hari Ini
@@ -139,12 +138,20 @@ class MahasiswaDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _menuButton(IconData icon, String label, Color color) {
+  Widget _menuButton(BuildContext context, IconData icon, String label, Color color, Widget page) {
     return Column(
       children: [
-        CircleAvatar(
-          backgroundColor: color,
-          child: Icon(icon, color: Colors.white),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => page),
+            );
+          },
+          child: CircleAvatar(
+            backgroundColor: color,
+            child: Icon(icon, color: Colors.white),
+          ),
         ),
         SizedBox(height: 4),
         Text(label),

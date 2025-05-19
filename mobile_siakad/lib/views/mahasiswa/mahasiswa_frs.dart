@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class FrsPage extends StatelessWidget {
+class MahasiswaFrsPage extends StatelessWidget {
   final List<Map<String, String>> matakuliah = [
     {'kode': '210702-12', 'nama': 'Testing dan Implementasi'},
     {'kode': '210702-13', 'nama': 'Rekayasa Web Prak.'},

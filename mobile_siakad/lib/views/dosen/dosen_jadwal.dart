@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class JadwalKuliahPage extends StatelessWidget {
+class DosenJadwalPage extends StatelessWidget {
   final Color primaryBlue = Color(0xFF133B7A);
 
   @override

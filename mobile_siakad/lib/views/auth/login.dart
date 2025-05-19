@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart';
-import '../mahasiswa/mahasiswa_dashboard.dart'; // Untuk navigasi ke DashboardPage
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart'; // Untuk navigasi ke DashboardPage
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

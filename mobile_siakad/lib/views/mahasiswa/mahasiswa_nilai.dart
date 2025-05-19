@@ -16,7 +16,7 @@ class MahasiswaNilaiPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          'Jadwal Kuliah',
+          'Nilai',
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
@@ -32,7 +32,7 @@ class MahasiswaNilaiPage extends StatelessWidget {
                 Icon(Icons.school_outlined, color: Colors.blue),
                 SizedBox(width: 8),
                 Text(
-                  'Jadwal Kuliah saya',
+                  'Nilai Per Semester',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
