@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart';
-import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart'; // Untuk navigasi ke DashboardPage
+import 'package:mobile_siakad/views/dosen/dosen_dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,15 +13,52 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
+  bool _isLoading = false;
+  final AuthService _authService = AuthService();
   final Color primaryBlue = Color(0xFF133B7A);
 
-  void _handleLogin() {
-    // Dummy login: navigasi ke dashboard
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => MahasiswaDashboardPage()),
-    );
+  Future<void> _handleLogin() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = await _authService.login(
+        _emailController.text,
+        _passwordController.text,
+        AuthService.getDeviceName(),
+      );
+
+      if (user != null) {
+        // Navigate to appropriate dashboard based on role
+        if (user.role == 'mahasiswa') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => MahasiswaDashboardPage()),
+          );
+        } else if (user.role == 'dosen') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => DosenDashboardPage()),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Invalid user role')),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Login failed: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override

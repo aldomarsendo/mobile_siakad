@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_siakad/views/auth/login.dart';
 // import 'package:mobile_siakad/views/auth/login.dart';
 // import 'package:mobile_siakad/views/dosen/dosen_dashboard.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart';
@@ -21,7 +22,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Jadwal Kuliah',
       debugShowCheckedModeBanner: false,
-      home: MahasiswaProfilPage(), // Jalankan halaman ini langsung
+      home: LoginPage(), // Jalankan halaman ini langsung
     );
   }
 }
