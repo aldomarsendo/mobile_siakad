@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_siakad/views/dosen/dosen_jadwal.dart';
+import 'package:mobile_siakad/views/dosen/dosen_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
 import 'package:mobile_siakad/services/dosen_service.dart';
 import 'package:mobile_siakad/models/dosen_model.dart';
+import 'package:mobile_siakad/views/auth/login.dart';
 
 class DosenDashboardPage extends StatefulWidget {
   const DosenDashboardPage({super.key});
@@ -12,6 +15,7 @@ class DosenDashboardPage extends StatefulWidget {
 }
 
 class _DosenDashboardPageState extends State<DosenDashboardPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final Color primaryBlue = Color(0xFF133B7A);
   User? _currentUser;
   Dosen? _dosenProfile;
@@ -41,10 +45,80 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.grey[200],
+      endDrawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: primaryBlue,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'),
+                    radius: 30,
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    _currentUser?.name ?? 'Loading...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '${_dosenProfile?.nidn} (Dosen)',
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.person_outline),
+              title: Text('Edit Profile'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DosenProfilPage(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.logout),
+              title: Text('Logout'),
+              onTap: () async {
+                try {
+                  await _authService.logout();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LoginPage(),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error logging out: $e')),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -53,8 +127,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: primaryBlue,
-                borderRadius: BorderRadius.only(
-                ),
+                borderRadius: BorderRadius.only(),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,13 +152,17 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                         ],
                       ),
                       Spacer(),
-                      Icon(Icons.settings, color: Colors.white),
+                      IconButton(
+                        icon: Icon(Icons.menu, color: Colors.white),
+                        onPressed: () {
+                          _scaffoldKey.currentState?.openEndDrawer();
+                        },
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
-
             // Berita Terbaru
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -108,15 +185,13 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
             ),
 
             // Menu Akademik
-                      // ...existing code...
-            // Menu Akademik
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Akademik', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8),
+                  SizedBox(height: 16),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -142,7 +217,6 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                 ],
               ),
             ),
-            // ...existing code...
             SizedBox(height: 16),
 
             // Jadwal Kuliah Hari Ini

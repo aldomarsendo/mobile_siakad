@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_jadwal.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_nilai.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_frs.dart';
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
 import 'package:mobile_siakad/services/mahasiswa_service.dart';
 import 'package:mobile_siakad/models/mahasiswa_model.dart';
+import 'package:mobile_siakad/views/auth/login.dart';
 
 class MahasiswaDashboardPage extends StatefulWidget {
   const MahasiswaDashboardPage({super.key});
@@ -15,6 +17,7 @@ class MahasiswaDashboardPage extends StatefulWidget {
 }
 
 class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final Color primaryBlue = Color(0xFF133B7A);
   User? _currentUser;
   Mahasiswa? _mahasiswaProfile;
@@ -47,7 +50,74 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.grey[200],
+      endDrawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: primaryBlue,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'),
+                    radius: 30,
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    _currentUser?.name ?? 'Loading...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '${_mahasiswaProfile?.nrp} (Mahasiswa)',
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.person_outline),
+              title: Text('Edit Profile'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MahasiswaProfilPage(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.logout),
+              title: Text('Logout'),
+              onTap: () async {
+                try {
+                  await _authService.logout();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LoginPage(),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error logging out: $e')),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -81,7 +151,12 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
                         ],
                       ),
                       Spacer(),
-                      Icon(Icons.settings, color: Colors.white),
+                      IconButton(
+                        icon: Icon(Icons.menu, color: Colors.white),
+                        onPressed: () {
+                          _scaffoldKey.currentState?.openEndDrawer();
+                        },
+                      ),
                     ],
                   ),
                 ],
