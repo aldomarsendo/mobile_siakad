@@ -1,12 +1,48 @@
 import 'package:flutter/material.dart';
-import 'mahasiswa_jadwal.dart';
-import 'mahasiswa_nilai.dart';
-import 'mahasiswa_frs.dart';
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_jadwal.dart';
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_nilai.dart';
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_frs.dart';
+import 'package:mobile_siakad/services/auth_service.dart';
+import 'package:mobile_siakad/models/user_model.dart';
+import 'package:mobile_siakad/services/mahasiswa_service.dart';
+import 'package:mobile_siakad/models/mahasiswa_model.dart';
 
-class MahasiswaDashboardPage extends StatelessWidget {
+class MahasiswaDashboardPage extends StatefulWidget {
+  const MahasiswaDashboardPage({super.key});
+
+  @override
+  State<MahasiswaDashboardPage> createState() => _MahasiswaDashboardPageState();
+}
+
+class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
   final Color primaryBlue = Color(0xFF133B7A);
+  User? _currentUser;
+  Mahasiswa? _mahasiswaProfile;
+  final AuthService _authService = AuthService();
+  final MahasiswaService _mahasiswaService = MahasiswaService();
 
-  MahasiswaDashboardPage({super.key});
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final user = await _authService.getCurrentUser();
+      setState(() {
+        _currentUser = user;
+      });
+
+      // Load mahasiswa profile
+      final mahasiswa = await _mahasiswaService.getProfile();
+      setState(() {
+        _mahasiswaProfile = mahasiswa;
+      });
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +71,11 @@ class MahasiswaDashboardPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Pradita Arif Setiawan',
+                            _currentUser?.name ?? 'Loading...',
                             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            '3123500052 (Mahasiswa)',
+                            '${_mahasiswaProfile?.nrp} (Mahasiswa)',
                             style: TextStyle(color: Colors.white),
                           ),
                         ],

@@ -1,9 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_siakad/services/auth_service.dart';
+import 'package:mobile_siakad/models/user_model.dart';
+import 'package:mobile_siakad/services/dosen_service.dart';
+import 'package:mobile_siakad/models/dosen_model.dart';
 
-class DosenDashboardPage extends StatelessWidget {
+class DosenDashboardPage extends StatefulWidget {
+  const DosenDashboardPage({super.key});
+
+  @override
+  State<DosenDashboardPage> createState() => _DosenDashboardPageState();
+}
+
+class _DosenDashboardPageState extends State<DosenDashboardPage> {
   final Color primaryBlue = Color(0xFF133B7A);
+  User? _currentUser;
+  Dosen? _dosenProfile;
+  final AuthService _authService = AuthService();
+  final DosenService _dosenService = DosenService();
 
-  DosenDashboardPage({super.key});
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final user = await _authService.getCurrentUser();
+      setState(() {
+        _currentUser = user;
+      });
+
+      // Load dosen profile
+      final dosen = await _dosenService.getProfile();
+      setState(() {
+        _dosenProfile = dosen;
+      });
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +69,11 @@ class DosenDashboardPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Pradita Arif Setiawan',
+                            _currentUser?.name ?? 'Loading...',
                             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            '3123500052 (Dosen)',
+                            '${_dosenProfile?.nidn} (Dosen)',
                             style: TextStyle(color: Colors.white),
                           ),
                         ],

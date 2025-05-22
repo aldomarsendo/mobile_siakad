@@ -36,7 +36,7 @@ class AuthService {
         final userData = {
           'user': data['user'] ?? {},
           'token': data['token'] ?? '',
-          'role': data['role'] ?? 'user'
+          'role': data['user']['roles']?.first['name'] ?? 'user'
         };
 
         // Check if user data is valid
@@ -49,7 +49,7 @@ class AuthService {
         // Save token and user data
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tokenKey, userData['token']);
-        await prefs.setString(_userKey, jsonEncode(user.toJson()));
+        await prefs.setString(_userKey, jsonEncode(userData)); // Simpan userData langsung
 
         return user;
       } else {

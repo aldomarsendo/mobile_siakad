@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Jadwal Kuliah',
       debugShowCheckedModeBanner: false,
-      home: LoginPage(), // Jalankan halaman ini langsung
+      home: MahasiswaDashboardPage(), // Jalankan halaman ini langsung
     );
   }
 }
