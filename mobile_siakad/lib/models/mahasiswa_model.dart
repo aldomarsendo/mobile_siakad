@@ -5,6 +5,9 @@ class Mahasiswa {
   final String nrp;
   final String nama;
   final String prodi;
+  final String? email; // Added
+  final String? noHp; // Added
+  final String? alamat; // Added
   final String createdAt;
   final String updatedAt;
   final Kelas? kelas;
@@ -16,6 +19,9 @@ class Mahasiswa {
     required this.nrp,
     required this.nama,
     required this.prodi,
+    this.email,
+    this.noHp,
+    this.alamat,
     required this.createdAt,
     required this.updatedAt,
     this.kelas,
@@ -29,6 +35,9 @@ class Mahasiswa {
       nrp: json['nrp'],
       nama: json['nama'],
       prodi: json['prodi'],
+      email: json['email']?.toString(),
+      noHp: json['no_hp']?.toString(),
+      alamat: json['alamat']?.toString(),
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
       kelas: json['kelas'] != null ? Kelas.fromJson(json['kelas']) : null,
@@ -63,9 +72,9 @@ class Kelas {
       idDosenWali: json['id_dosen_wali'],
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
-      dosenWali: json['dosen_wali'] != null 
-        ? DosenWali.fromJson(json['dosen_wali']) 
-        : null,
+      dosenWali: json['dosen_wali'] != null
+          ? DosenWali.fromJson(json['dosen_wali'])
+          : null,
     );
   }
 }
