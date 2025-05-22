@@ -33,14 +33,12 @@ class MahasiswaService {
   Future<void> updateProfile({
     required String nama,
     required String email,
-    required String noHp,
-    required String alamat,
   }) async {
     try {
       final token = await AuthService().getToken();
       if (token == null) throw Exception('No token found');
 
-      print('Updating profile with nama: $nama, email: $email, noHp: $noHp, alamat: $alamat');
+      print('Updating profile with nama: $nama, email: $email');
 
       // Try POST method first
       var response = await http.post(
@@ -53,8 +51,6 @@ class MahasiswaService {
         body: jsonEncode({
           'nama': nama,
           'email': email,
-          'no_hp': noHp,
-          'alamat': alamat,
         }),
       );
 
@@ -74,8 +70,6 @@ class MahasiswaService {
           body: jsonEncode({
             'nama': nama,
             'email': email,
-            'no_hp': noHp,
-            'alamat': alamat,
           }),
         );
 
@@ -96,8 +90,6 @@ class MahasiswaService {
           body: jsonEncode({
             'nama': nama,
             'email': email,
-            'no_hp': noHp,
-            'alamat': alamat,
           }),
         );
 
@@ -118,8 +110,6 @@ class MahasiswaService {
           body: jsonEncode({
             'nama': nama,
             'email': email,
-            'no_hp': noHp,
-            'alamat': alamat,
           }),
         );
 
