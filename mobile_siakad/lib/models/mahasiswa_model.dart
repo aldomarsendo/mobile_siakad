@@ -5,12 +5,11 @@ class Mahasiswa {
   final String nrp;
   final String nama;
   final String prodi;
-  final String? email; // Added
-  final String? noHp; // Added
-  final String? alamat; // Added
+  final String? email;
   final String createdAt;
   final String updatedAt;
-  final Kelas? kelas;
+  final String kelas;
+  final String dosenWali;
 
   Mahasiswa({
     required this.idMahasiswa,
@@ -20,11 +19,10 @@ class Mahasiswa {
     required this.nama,
     required this.prodi,
     this.email,
-    this.noHp,
-    this.alamat,
     required this.createdAt,
     required this.updatedAt,
-    this.kelas,
+    required this.kelas,
+    required this.dosenWali,
   });
 
   factory Mahasiswa.fromJson(Map<String, dynamic> json) {
@@ -36,11 +34,10 @@ class Mahasiswa {
       nama: json['nama'],
       prodi: json['prodi'],
       email: json['email']?.toString(),
-      noHp: json['no_hp']?.toString(),
-      alamat: json['alamat']?.toString(),
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
-      kelas: json['kelas'] != null ? Kelas.fromJson(json['kelas']) : null,
+      kelas: json['kelas'],
+      dosenWali: json['dosen_wali'],
     );
   }
 }

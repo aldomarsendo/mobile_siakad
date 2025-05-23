@@ -5,9 +5,11 @@ import 'package:mobile_siakad/views/dosen/dosen_frs.dart';   // Tambahkan import
 import 'package:mobile_siakad/views/dosen/dosen_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
-import 'package:mobile_siakad/services/dosen_service.dart';
+import 'package:mobile_siakad/services/dosen/dosen_profile_service.dart';
 import 'package:mobile_siakad/models/dosen_model.dart';
 import 'package:mobile_siakad/views/auth/login.dart';
+import 'package:mobile_siakad/services/api_client.dart';
+import 'package:http/http.dart' as http;
 
 class DosenDashboardPage extends StatefulWidget {
   const DosenDashboardPage({super.key});
@@ -21,29 +23,37 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
   final Color primaryBlue = Color(0xFF133B7A);
   User? _currentUser;
   Dosen? _dosenProfile;
-  final AuthService _authService = AuthService();
-  final DosenService _dosenService = DosenService();
+  bool _isLoading = true;
+  late AuthService _authService;
+  late ApiClient _apiClient;
+  late DosenProfileService _profileService;
 
   @override
   void initState() {
     super.initState();
+    _apiClient = ApiClient(http.Client());
+    _authService = AuthService(_apiClient);
+    _profileService = DosenProfileService(_apiClient);
     _loadCurrentUser();
   }
 
   Future<void> _loadCurrentUser() async {
     try {
+      setState(() => _isLoading = true);
       final user = await _authService.getCurrentUser();
       setState(() {
         _currentUser = user;
       });
 
       // Load dosen profile
-      final dosen = await _dosenService.getProfile();
+      final dosen = await _profileService.getProfile();
       setState(() {
         _dosenProfile = dosen;
+        _isLoading = false;
       });
     } catch (e) {
       print('Error loading user data: $e');
+      setState(() => _isLoading = false);
     }
   }
 

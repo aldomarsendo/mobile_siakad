@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_siakad/services/dosen_service.dart';
+import 'package:mobile_siakad/services/dosen/dosen_profile_service.dart';
 import 'package:mobile_siakad/models/dosen_model.dart';
+import 'package:mobile_siakad/services/api_client.dart';
+import 'package:http/http.dart' as http;
 
 class DosenProfilPage extends StatefulWidget {
   const DosenProfilPage({super.key});
@@ -12,7 +14,7 @@ class DosenProfilPage extends StatefulWidget {
 class _DosenProfilPageState extends State<DosenProfilPage> {
   final Color primaryBlue = Color(0xFF133B7A);
   Dosen? _dosenProfile;
-  final DosenService _dosenService = DosenService();
+  final DosenProfileService _dosenService = DosenProfileService(ApiClient(http.Client()));
   bool _isLoading = true;
   String? _errorMessage;
   bool _isUpdating = false;

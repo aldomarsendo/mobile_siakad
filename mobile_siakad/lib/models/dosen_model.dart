@@ -24,7 +24,7 @@ class Dosen {
       idDosen: json['id_dosen'] ?? 0,
       userId: json['user_id'] ?? 0,
       nidn: json['nidn']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
+      name: json['nama']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       isDosenWali: (json['is_dosen_wali'] == 1 || json['is_dosen_wali'] == true),
       createdAt: json['created_at']?.toString() ?? '',
