@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:mobile_siakad/services/mahasiswa_service.dart';
+import 'package:mobile_siakad/services/mahasiswa/mahasiswa_profile_service.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/mahasiswa_model.dart';
 import 'package:mobile_siakad/models/user_model.dart';
+import 'package:mobile_siakad/services/api_client.dart';
+import 'package:http/http.dart' as http;
 
 class MahasiswaProfilPage extends StatefulWidget {
   const MahasiswaProfilPage({super.key});
@@ -17,8 +19,9 @@ class MahasiswaProfilPage extends StatefulWidget {
 class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
   final Color primaryBlue = Color(0xFF133B7A);
   Mahasiswa? _mahasiswaProfile;
-  final MahasiswaService _mahasiswaService = MahasiswaService();
-  final AuthService _authService = AuthService();
+  late final ApiClient _apiClient;
+  late final MahasiswaProfileService _profileService;
+  late final AuthService _authService;
   bool _isLoading = true;
   String? _errorMessage;
   bool _isUpdating = false;
@@ -31,6 +34,9 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
   @override
   void initState() {
     super.initState();
+    _apiClient = ApiClient(http.Client());
+    _profileService = MahasiswaProfileService(_apiClient);
+    _authService = AuthService(_apiClient);
     _loadMahasiswaProfile();
   }
 
@@ -50,7 +56,7 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
 
     try {
       print('🔄 Loading mahasiswa profile...');
-      final profile = await _mahasiswaService.getProfile();
+      final profile = await _profileService.getProfile();
       if (profile != null) {
         print('✅ Profile loaded successfully: ${profile.nama}');
         print('Profile email: ${profile.email}');
@@ -149,7 +155,7 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
     });
 
     try {
-      await _mahasiswaService.updateProfile(
+      await _profileService.updateProfile(
         nama: _namaController.text.trim(),
         email: _emailController.text.trim(),
       );

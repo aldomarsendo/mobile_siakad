@@ -5,9 +5,11 @@ import 'package:mobile_siakad/views/mahasiswa/mahasiswa_frs.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
-import 'package:mobile_siakad/services/mahasiswa_service.dart';
+import 'package:mobile_siakad/services/mahasiswa/mahasiswa_profile_service.dart';
 import 'package:mobile_siakad/models/mahasiswa_model.dart';
 import 'package:mobile_siakad/views/auth/login.dart';
+import 'package:mobile_siakad/services/api_client.dart';
+import 'package:http/http.dart' as http;
 
 class MahasiswaDashboardPage extends StatefulWidget {
   const MahasiswaDashboardPage({super.key});
@@ -21,12 +23,16 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
   final Color primaryBlue = Color(0xFF133B7A);
   User? _currentUser;
   Mahasiswa? _mahasiswaProfile;
-  final AuthService _authService = AuthService();
-  final MahasiswaService _mahasiswaService = MahasiswaService();
+  late final AuthService _authService;
+  late final ApiClient _apiClient;
+  late final MahasiswaProfileService _profileService;
 
   @override
   void initState() {
     super.initState();
+    _apiClient = ApiClient(http.Client());
+    _profileService = MahasiswaProfileService(_apiClient);
+    _authService = AuthService(_apiClient);
     _loadCurrentUser();
   }
 
@@ -38,7 +44,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
       });
 
       // Load mahasiswa profile
-      final mahasiswa = await _mahasiswaService.getProfile();
+      final mahasiswa = await _profileService.getProfile();
       setState(() {
         _mahasiswaProfile = mahasiswa;
       });
