@@ -3,19 +3,14 @@ import 'package:mobile_siakad/views/auth/login.dart';
 import 'package:mobile_siakad/views/dosen/dosen_dashboard.dart';
 import 'package:mobile_siakad/views/dosen/dosen_frs.dart';
 import 'package:mobile_siakad/views/dosen/dosen_profil.dart';
-// import 'package:mobile_siakad/views/auth/login.dart';
-// import 'package:mobile_siakad/views/dosen/dosen_dashboard.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_dashboard.dart';
-// import 'package:mobile_siakad/views/mahasiswa/mahasiswa_frs.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_jadwal.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_profil.dart';
-// import 'views/mahasiswa/mahasiswa_nilai.dart';
-// import 'views/dosen/dosen_jadwal.dart';
-// import 'views/dosen/dosen_nilai.dart';
-// import 'views/dosen/dosen_dashboard.dart';
+import 'package:intl/date_symbol_data_local.dart'; // Tambahkan ini untuk inisialisasi locale
 
-
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Pastikan binding Flutter siap untuk operasi async
+  await initializeDateFormatting('id_ID', null); // Inisialisasi locale 'id_ID'
   runApp(MyApp());
 }
 

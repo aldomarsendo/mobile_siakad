@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_siakad/views/dosen/dosen_jadwal.dart';
-import 'package:mobile_siakad/views/dosen/dosen_nilai.dart'; // Tambahkan import ini
-import 'package:mobile_siakad/views/dosen/dosen_frs.dart';   // Tambahkan import ini
+import 'package:mobile_siakad/views/dosen/dosen_nilai.dart';
+import 'package:mobile_siakad/views/dosen/dosen_frs.dart';
 import 'package:mobile_siakad/views/dosen/dosen_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
@@ -10,6 +10,8 @@ import 'package:mobile_siakad/models/dosen_model.dart';
 import 'package:mobile_siakad/views/auth/login.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile_siakad/services/dosen/dosen_jadwal_service.dart';
+import 'package:mobile_siakad/models/matakuliah_model.dart';
 
 class DosenDashboardPage extends StatefulWidget {
   const DosenDashboardPage({super.key});
@@ -27,6 +29,8 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
   late AuthService _authService;
   late ApiClient _apiClient;
   late DosenProfileService _profileService;
+  late DosenJadwalService _jadwalService;
+  List<MataKuliah> _mataKuliah = [];
 
   @override
   void initState() {
@@ -34,7 +38,9 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     _apiClient = ApiClient(http.Client());
     _authService = AuthService(_apiClient);
     _profileService = DosenProfileService(_apiClient);
+    _jadwalService = DosenJadwalService(_authService, _apiClient);
     _loadCurrentUser();
+    _loadMataKuliah();
   }
 
   Future<void> _loadCurrentUser() async {
@@ -57,6 +63,19 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     }
   }
 
+  Future<void> _loadMataKuliah() async {
+    try {
+      print('=== MULAI MENGAMBIL DATA MATA KULIAH ===');
+      final mataKuliah = await _jadwalService.getMataKuliah();
+      setState(() {
+        _mataKuliah = mataKuliah;
+      });
+      print('=== SELESAI MENGAMBIL DATA MATA KULIAH ===');
+    } catch (e) {
+      print('Error loading mata kuliah: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,7 +94,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                 children: [
                   CircleAvatar(
                     backgroundColor: Colors.grey[300],
-                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'),
+                    child: Icon(Icons.person, size: 40, color: Colors.white),
                     radius: 30,
                   ),
                   SizedBox(height: 10),
@@ -248,8 +267,6 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                   Text("27  Senin · 2 MATA KULIAH", style: TextStyle(fontSize: 12)),
                   SizedBox(height: 8),
                   _classCard("07:00", "09:10", "Testing & Implementasi", "C 203", primaryBlue),
-                  SizedBox(height: 8),
-                  _classCard("10:00", "12:30", "Workshop Design Pengalaman Pengguna", "C 203", primaryBlue),
                 ],
               ),
             ),
