@@ -222,12 +222,20 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
             // Jadwal Kuliah Hari Ini
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Text("Jadwal kuliah hari ini", style: TextStyle(fontWeight: FontWeight.bold)),
-                  Spacer(),
-                  Icon(Icons.arrow_forward_ios, size: 16),
-                ],
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => MahasiswaJadwalPage()),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Text("Jadwal kuliah hari ini", style: TextStyle(fontWeight: FontWeight.bold)),
+                    Spacer(),
+                    Icon(Icons.arrow_forward_ios, size: 16),
+                  ],
+                ),
               ),
             ),
             SizedBox(height: 8),
@@ -237,9 +245,25 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> {
                 children: [
                   Text("27  Senin · 2 MATA KULIAH", style: TextStyle(fontSize: 12)),
                   SizedBox(height: 8),
-                  _classCard("07:00", "09:10", "Testing & Implementasi", "C 203", primaryBlue),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => MahasiswaJadwalPage()),
+                      );
+                    },
+                    child: _classCard("07:00", "09:10", "Testing & Implementasi", "C 203", primaryBlue),
+                  ),
                   SizedBox(height: 8),
-                  _classCard("10:00", "12:30", "Workshop Design Pengalaman Pengguna", "C 203", primaryBlue),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => MahasiswaJadwalPage()),
+                      );
+                    },
+                    child: _classCard("10:00", "12:30", "Workshop Design Pengalaman Pengguna", "C 203", primaryBlue),
+                  ),
                 ],
               ),
             ),

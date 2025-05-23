@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_siakad/views/dosen/dosen_jadwal.dart';
+import 'package:mobile_siakad/views/dosen/dosen_nilai.dart'; // Tambahkan import ini
+import 'package:mobile_siakad/views/dosen/dosen_frs.dart';   // Tambahkan import ini
 import 'package:mobile_siakad/views/dosen/dosen_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
@@ -44,8 +46,6 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
       print('Error loading user data: $e');
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -208,9 +208,9 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _menuButton(Icons.calendar_today, "Jadwal", primaryBlue),
-                        _menuButton(Icons.grade, "Nilai", primaryBlue),
-                        _menuButton(Icons.file_copy, "FRS", primaryBlue),
+                        _menuButton(context, Icons.calendar_today, "Jadwal", primaryBlue, DosenJadwalPage()),
+                        _menuButton(context, Icons.grade, "Nilai", primaryBlue, DosenNilaiPage()),
+                        _menuButton(context, Icons.file_copy, "FRS", primaryBlue, DosenFrsPage()),
                       ],
                     ),
                   ),
@@ -249,12 +249,20 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     );
   }
 
-  Widget _menuButton(IconData icon, String label, Color color) {
+  Widget _menuButton(BuildContext context, IconData icon, String label, Color color, Widget page) {
     return Column(
       children: [
-        CircleAvatar(
-          backgroundColor: color,
-          child: Icon(icon, color: Colors.white),
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => page),
+            );
+          },
+          child: CircleAvatar(
+            backgroundColor: color,
+            child: Icon(icon, color: Colors.white),
+          ),
         ),
         SizedBox(height: 4),
         Text(label),
