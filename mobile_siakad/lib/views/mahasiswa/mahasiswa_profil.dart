@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+
 import 'package:mobile_siakad/services/mahasiswa/mahasiswa_profile_service.dart';
-import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/mahasiswa_model.dart';
-import 'package:mobile_siakad/models/user_model.dart';
 import 'package:mobile_siakad/services/api_client.dart';
-import 'package:http/http.dart' as http;
 
 class MahasiswaProfilPage extends StatefulWidget {
   const MahasiswaProfilPage({super.key});
@@ -17,14 +13,16 @@ class MahasiswaProfilPage extends StatefulWidget {
 }
 
 class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
-  final Color primaryBlue = Color(0xFF133B7A);
+  final Color primaryBlue = const Color(0xFF133B7A);
+  
+  // State Variables
   Mahasiswa? _mahasiswaProfile;
-  late final ApiClient _apiClient;
-  late final MahasiswaProfileService _profileService;
-  late final AuthService _authService;
   bool _isLoading = true;
   String? _errorMessage;
   bool _isUpdating = false;
+
+  // Services
+  late final MahasiswaProfileService _profileService;
 
   // Controllers for form fields
   final TextEditingController _namaController = TextEditingController();
@@ -34,9 +32,11 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
   @override
   void initState() {
     super.initState();
-    _apiClient = ApiClient(http.Client());
-    _profileService = MahasiswaProfileService(_apiClient);
-    _authService = AuthService(_apiClient);
+    // Inisialisasi service
+    final apiClient = ApiClient(http.Client());
+    _profileService = MahasiswaProfileService(apiClient);
+    
+    // Langsung muat data profil saat halaman dibuka
     _loadMahasiswaProfile();
   }
 
@@ -55,97 +55,40 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
     });
 
     try {
-      print('🔄 Loading mahasiswa profile...');
       final profile = await _profileService.getProfile();
-      if (profile != null) {
-        print('✅ Profile loaded successfully: ${profile.nama}');
-        print('Profile email: ${profile.email}');
-        
-        // Cek apakah kita sudah memiliki token
-        final token = await _authService.getToken();
-        if (token != null) {
-          // Coba ambil user data dari shared preferences
-          final prefs = await SharedPreferences.getInstance();
-          final userDataString = prefs.getString('user'); // Gunakan string langsung
-          if (userDataString != null) {
-            final userData = jsonDecode(userDataString);
-            final user = User.fromJson(userData);
-            print('User email: ${user.email}');
-            setState(() {
-              _mahasiswaProfile = profile;
-              _namaController.text = profile.nama;
-              _nrpController.text = profile.nrp;
-              // Gunakan email dari model User
-              _emailController.text = user.email;
-              print('Email controller text: ${_emailController.text}');
-              _isLoading = false;
-            });
-          } else {
-            // Jika tidak ada di shared preferences, gunakan email dari profile
-            setState(() {
-              _mahasiswaProfile = profile;
-              _namaController.text = profile.nama;
-              _nrpController.text = profile.nrp;
-              _emailController.text = profile.email ?? '';
-              _isLoading = false;
-            });
-          }
-        } else {
-          setState(() {
-            _mahasiswaProfile = profile;
-            _namaController.text = profile.nama;
-            _nrpController.text = profile.nrp;
-            _emailController.text = profile.email ?? '';
-            _isLoading = false;
-          });
-        }
-      } else {
+      if (mounted) {
         setState(() {
-          _errorMessage = 'Profile data is null - Check API response';
-          _isLoading = false;
+          _mahasiswaProfile = profile;
+          _namaController.text = profile.nama;
+          _nrpController.text = profile.nrp;
+          _emailController.text = profile.email ?? '';
         });
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          duration: Duration(seconds: 5),
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Gagal memuat data profil: ${e.toString()}";
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _updateProfile() async {
-    if (_mahasiswaProfile == null) {
+    if (_namaController.text.trim().isEmpty || _emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profile data not loaded')),
+        const SnackBar(content: Text('Nama dan Email tidak boleh kosong')),
       );
       return;
     }
-
-    // Input validation
-    if (_namaController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Nama tidak boleh kosong')),
-      );
-      return;
-    }
-
-    if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Email tidak boleh kosong')),
-      );
-      return;
-    }
-
     if (!_isValidEmail(_emailController.text.trim())) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Format email tidak valid')),
+        const SnackBar(content: Text('Format email tidak valid')),
       );
       return;
     }
@@ -160,40 +103,49 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
         email: _emailController.text.trim(),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Profile berhasil diperbarui'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Reload profile after update
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil berhasil diperbarui'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
       await _loadMahasiswaProfile();
+
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating profile: $e'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 5),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui profil: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
+    }
+  }
+
+  void _resetForm() {
+    if (_mahasiswaProfile != null) {
       setState(() {
-        _isUpdating = false;
+        _namaController.text = _mahasiswaProfile!.nama;
+        _nrpController.text = _mahasiswaProfile!.nrp;
+        _emailController.text = _mahasiswaProfile!.email ?? '';
       });
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Form telah di-reset'), duration: Duration(seconds: 2),),
+      );
     }
   }
 
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
-
-  void _resetForm() {
-    if (_mahasiswaProfile != null) {
-      _namaController.text = _mahasiswaProfile!.nama;
-      _nrpController.text = _mahasiswaProfile!.nrp;
-      _emailController.text = _mahasiswaProfile!.email ?? '';
-    }
   }
 
   @override
@@ -207,15 +159,9 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: _loadMahasiswaProfile,
+            onPressed: _isLoading || _isUpdating ? null : _loadMahasiswaProfile,
             tooltip: 'Refresh Data',
           ),
-          if (!_isLoading && _mahasiswaProfile != null)
-            IconButton(
-              icon: Icon(Icons.restore),
-              onPressed: _resetForm,
-              tooltip: 'Reset ke Data Asli',
-            ),
         ],
       ),
       body: _isLoading
@@ -256,7 +202,6 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      // Avatar section with user info
                       Card(
                         elevation: 4,
                         shape: RoundedRectangleBorder(
@@ -266,7 +211,7 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                           width: double.infinity,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [primaryBlue, primaryBlue.withOpacity(0.7)],
+                              colors: [primaryBlue, primaryBlue.withValues(alpha: 0.7)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -282,7 +227,7 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                               ),
                               SizedBox(height: 16),
                               Text(
-                                _mahasiswaProfile?.nama ?? 'N/A',
+                                _mahasiswaProfile?.nama ?? 'Nama tidak tersedia',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
@@ -295,15 +240,15 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                                 'NRP: ${_mahasiswaProfile?.nrp ?? 'N/A'}',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                               SizedBox(height: 4),
                               Text(
-                                _mahasiswaProfile?.email ?? 'N/A',
+                                _emailController.text,
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                 ),
                               ),
                             ],
@@ -313,7 +258,6 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
 
                       SizedBox(height: 20),
 
-                      // Form edit profile
                       Card(
                         elevation: 2,
                         child: Padding(
@@ -329,75 +273,38 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                                 ),
                               ),
                               SizedBox(height: 16),
-
-                              // Nama field - EDITABLE
+                              // Nama field
                               TextFormField(
                                 controller: _namaController,
                                 decoration: InputDecoration(
                                   labelText: 'Nama Lengkap',
-                                  helperText: _mahasiswaProfile?.email != null
-                                      ? 'Email saat ini: ${_mahasiswaProfile!.email}'
-                                      : null,
-                                  helperStyle: TextStyle(
-                                    color: Colors.blue[600],
-                                    fontSize: 12,
-                                  ),
                                   border: OutlineInputBorder(),
                                   prefixIcon: Icon(Icons.person),
-                                  suffixIcon: _namaController.text.isNotEmpty
-                                      ? Icon(Icons.edit, color: primaryBlue, size: 20)
-                                      : null,
                                 ),
-                                onChanged: (value) {
-                                  setState(() {}); // Update suffixIcon
-                                },
                               ),
                               SizedBox(height: 16),
-
-                              // NRP field - READONLY
+                              // NRP field
                               TextFormField(
                                 controller: _nrpController,
                                 readOnly: true,
                                 decoration: InputDecoration(
                                   labelText: 'NRP (Tidak dapat diubah)',
-                                  helperText: 'NRP adalah data tetap yang tidak dapat diubah',
-                                  helperStyle: TextStyle(
-                                    color: Colors.orange[600],
-                                    fontSize: 12,
-                                  ),
                                   border: OutlineInputBorder(),
                                   prefixIcon: Icon(Icons.badge),
-                                  suffixIcon: Icon(Icons.lock, color: Colors.grey, size: 20),
                                   filled: true,
                                   fillColor: Colors.grey[100],
                                 ),
                               ),
                               SizedBox(height: 16),
-
-                              // Email field - EDITABLE
+                              // Email field
                               TextFormField(
                                 controller: _emailController,
                                 decoration: InputDecoration(
                                   labelText: 'Email',
-                                  helperText: _mahasiswaProfile?.email != null
-                                      ? 'Email saat ini: ${_mahasiswaProfile!.email}'
-                                      : null,
-                                  helperStyle: TextStyle(
-                                    color: Colors.blue[600],
-                                    fontSize: 12,
-                                  ),
                                   border: OutlineInputBorder(),
                                   prefixIcon: Icon(Icons.email),
-                                  suffixIcon: _emailController.text.isNotEmpty && _isValidEmail(_emailController.text)
-                                      ? Icon(Icons.check_circle, color: Colors.green, size: 20)
-                                      : _emailController.text.isNotEmpty
-                                          ? Icon(Icons.error, color: Colors.red, size: 20)
-                                          : Icon(Icons.edit, color: primaryBlue, size: 20),
                                 ),
                                 keyboardType: TextInputType.emailAddress,
-                                onChanged: (value) {
-                                  setState(() {}); // Update suffixIcon
-                                },
                               ),
                             ],
                           ),
@@ -406,7 +313,6 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
 
                       SizedBox(height: 24),
 
-                      // Action buttons
                       Row(
                         children: [
                           Expanded(
@@ -416,10 +322,7 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                                 padding: EdgeInsets.symmetric(vertical: 16),
                                 side: BorderSide(color: primaryBlue),
                               ),
-                              child: Text(
-                                'Reset',
-                                style: TextStyle(color: primaryBlue),
-                              ),
+                              child: Text('Reset', style: TextStyle(color: primaryBlue)),
                             ),
                           ),
                           SizedBox(width: 12),
@@ -429,6 +332,7 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                               onPressed: _isUpdating ? null : _updateProfile,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primaryBlue,
+                                foregroundColor: Colors.white,
                                 padding: EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -450,42 +354,10 @@ class _MahasiswaProfilPageState extends State<MahasiswaProfilPage> {
                                         Text('Menyimpan...'),
                                       ],
                                     )
-                                  : Text(
-                                      'Simpan Perubahan',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                                  : Text('Simpan Perubahan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ],
-                      ),
-
-                      SizedBox(height: 16),
-
-                      // Info card
-                      Card(
-                        color: Colors.blue[50],
-                        child: Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline, color: Colors.blue[700]),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Form sudah terisi dengan data profil Anda saat ini. Anda dapat mengubah Nama, Email, No. HP, dan Alamat, kemudian klik "Simpan Perubahan".',
-                                  style: TextStyle(
-                                    color: Colors.blue[700],
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
                     ],
                   ),

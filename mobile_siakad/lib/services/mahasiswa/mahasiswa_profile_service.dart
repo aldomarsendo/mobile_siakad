@@ -1,6 +1,3 @@
-// lib/services/mahasiswa/mahasiswa_profile_service.dart
-
-import 'dart:convert';
 import '../../models/mahasiswa_model.dart';
 import '../api_client.dart'; 
 
@@ -13,9 +10,8 @@ class MahasiswaProfileService {
     try {
       final response = await _apiClient.get('mahasiswa/profile');
       
-      // Pastikan respons adalah Map
       if (response is Map<String, dynamic>) {
-        final mahasiswaData = response['mahasiswa'];
+        final mahasiswaData = response['profile'];
         if (mahasiswaData != null) {
           return Mahasiswa.fromJson(mahasiswaData);
         }
