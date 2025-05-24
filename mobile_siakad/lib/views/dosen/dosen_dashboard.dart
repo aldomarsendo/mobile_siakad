@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_siakad/views/dosen/dosen_jadwal.dart';
 import 'package:mobile_siakad/views/dosen/dosen_nilai.dart';
-import 'package:mobile_siakad/views/dosen/dosen_frs.dart';
+//import 'package:mobile_siakad/views/dosen/dosen_frs.dart';
 import 'package:mobile_siakad/views/dosen/dosen_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
@@ -13,6 +13,7 @@ import 'package:mobile_siakad/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_siakad/services/dosen/dosen_jadwal_service.dart';
 import 'package:mobile_siakad/models/matakuliah_model.dart';
+import 'package:mobile_siakad/views/dosen/frs/kelas_wali.dart';
 
 class DosenDashboardPage extends StatefulWidget {
   const DosenDashboardPage({super.key});
@@ -45,21 +46,19 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
     _loadInitialData();
   }
 
-  Future<void> _loadInitialData({bool isRefresh = false}) async {
+ Future<void> _loadInitialData({bool isRefresh = false}) async {
     if (!mounted) return;
+    print("DosenDashboardPage: _loadInitialData called. isRefresh: $isRefresh"); // VERIFIKASI 1
     setState(() {
       _isLoading = true;
       if (!isRefresh) _errorMessage = null;
     });
 
     try {
-      // Ambil data user dan profil dosen secara bersamaan
       final userFuture = _authService.getCurrentUser();
       final dosenProfileFuture = _profileService.getProfile();
-      // Ambil semua mata kuliah untuk difilter nanti
       final semuaMataKuliahFuture = _jadwalService.getMataKuliah();
 
-      // Tunggu semua future selesai
       final results = await Future.wait([
         userFuture,
         dosenProfileFuture,
@@ -70,6 +69,10 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
       final Dosen? dosen = results[1] as Dosen?;
       final List<MataKuliah> semuaMataKuliah = results[2] as List<MataKuliah>;
       
+      // VERIFIKASI 2: Cek data yang berhasil diambil
+      print("DosenDashboardPage: Fetched User Name: ${user?.name}");
+      print("DosenDashboardPage: Fetched Dosen Profile Name: ${dosen?.name}"); // Asumsi Dosen model punya 'name' atau akses ke nama user
+
       final String hariIniString = DateFormat('EEEE', 'id_ID').format(DateTime.now());
       final List<MataKuliah> filteredJadwal = semuaMataKuliah
           .where((mk) => mk.hari.toLowerCase() == hariIniString.toLowerCase())
@@ -79,7 +82,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
       if (mounted) {
         setState(() {
           _currentUser = user;
-          _dosenProfile = dosen;
+          _dosenProfile = dosen; // Dosen profile juga diupdate
           _jadwalHariIni = filteredJadwal;
         });
       }
@@ -200,16 +203,40 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                     ),
             ),
             ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Edit Profil'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DosenProfilPage()),
-                ).then((_) => _loadInitialData(isRefresh: true));
-              },
-            ),
+  leading: const Icon(Icons.person_outline),
+  title: const Text('Edit Profil'),
+  onTap: () {
+    Navigator.pop(context); // Tutup drawer dulu
+    print("DosenDashboardPage: Navigating to DosenProfilPage..."); // VERIFIKASI 3
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DosenProfilPage()),
+    ).then((value) { // Ganti '_' menjadi 'value' untuk memeriksa nilai yang dikembalikan
+      print("DosenDashboardPage: Returned from DosenProfilPage. Value: $value"); // VERIFIKASI 4
+      // Jika DosenProfilPage mengembalikan data yang diupdate via Navigator.pop(context, updatedData)
+      if (value != null && value is Dosen) { // Atau tipe data yang Anda kirim kembali
+         print("DosenDashboardPage: Received updated data directly: ${value.name}");
+         if(mounted){
+            setState(() {
+              _dosenProfile = value; // Update profil dosen
+              // Update _currentUser juga jika perlu dan jika DosenProfilPage bisa mengembalikan data User
+              if (_currentUser != null) {
+                _currentUser = User(
+                  id: _currentUser!.id,
+                  name: value.name, // Asumsi nama di Dosen model adalah nama user
+                  email: _currentUser!.email, // Anda mungkin juga perlu mengupdate email
+                  role: _currentUser!.role
+                );
+              }
+            });
+         }
+      }
+      // Tetap panggil _loadInitialData untuk sinkronisasi penuh dari server
+      _loadInitialData(isRefresh: true);
+    });
+  },
+),
+
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
@@ -286,7 +313,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                                 children: [
                                   _menuButton(context, Icons.calendar_today_outlined, "Jadwal", primaryBlue, DosenJadwalPage()),
                                   _menuButton(context, Icons.grade_outlined, "Nilai", primaryBlue, DosenNilaiPage()),
-                                  _menuButton(context, Icons.file_copy_outlined, "FRS", primaryBlue, DosenFrsPage()),
+                                  _menuButton(context, Icons.file_copy_outlined, "FRS", primaryBlue, KelasWaliPage()),
                                 ],
                               ),
                             ),

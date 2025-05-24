@@ -12,7 +12,7 @@ class DosenProfilPage extends StatefulWidget {
 }
 
 class _DosenProfilPageState extends State<DosenProfilPage> {
-  final Color primaryBlue = const Color(0xFF133B7A); 
+  final Color primaryBlue = const Color(0xFF133B7A);
 
   // State Variables
   Dosen? _dosenProfile;
@@ -21,20 +21,23 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
   bool _isUpdating = false;
 
   // Services
-  late final DosenProfileService _dosenService; // Inisialisasi di initState
+  late final DosenProfileService _dosenService;
 
   // Controllers untuk form fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _nidnController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   @override
   void initState() {
     super.initState();
-    // Inisialisasi service di initState
     final apiClient = ApiClient(http.Client());
     _dosenService = DosenProfileService(apiClient);
-    
     _loadDosenProfile();
   }
 
@@ -43,26 +46,30 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     _nameController.dispose();
     _nidnController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _loadDosenProfile() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      print('🔄 Loading dosen profile...');
+      print('🔄 Loading dosen profile on DosenProfilPage...');
       final profile = await _dosenService.getProfile();
-      
-      print('✅ Profile loaded successfully: ${profile.name}');
+      print('✅ Profile loaded successfully on DosenProfilPage: ${profile.name}');
       if (mounted) {
         setState(() {
           _dosenProfile = profile;
           _nameController.text = profile.name;
           _nidnController.text = profile.nidn;
           _emailController.text = profile.email;
+          _passwordController.clear();
+          _confirmPasswordController.clear();
         });
       }
     } catch (e) {
@@ -71,7 +78,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
           _errorMessage = "Gagal memuat profil: ${e.toString()}";
         });
       }
-      print('Error loading dosen profile: $e');
+      print('Error loading dosen profile on DosenProfilPage: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -83,36 +90,42 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
 
   Future<void> _updateProfile() async {
     if (_dosenProfile == null) {
-      if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text('Profile data not loaded')),
+          const SnackBar(content: Text('Data profil belum dimuat')),
         );
       }
       return;
     }
 
-    if (_nameController.text.trim().isEmpty) {
-      if(mounted) {
+    // Nama tidak lagi diambil untuk diupdate dari sini
+    // final newName = _nameController.text.trim(); 
+    final newPassword = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+
+    // Jika password tidak diisi, tidak ada yang perlu diupdate dari halaman ini
+    if (newPassword.isEmpty) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nama tidak boleh kosong')),
+          const SnackBar(content: Text('Masukkan password baru jika ingin mengubah.')),
         );
       }
       return;
     }
 
-    if (_emailController.text.trim().isEmpty) {
-      if(mounted) {
+    // Validasi Password
+    if (newPassword.length < 8) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email tidak boleh kosong')),
+          const SnackBar(content: Text('Password minimal 8 karakter')),
         );
       }
       return;
     }
-
-    if (!_isValidEmail(_emailController.text.trim())) {
-      if(mounted) {
+    if (newPassword != confirmPassword) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Format email tidak valid')),
+          const SnackBar(content: Text('Konfirmasi password tidak cocok')),
         );
       }
       return;
@@ -123,30 +136,50 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     });
 
     try {
+      // Panggil service HANYA dengan password dan konfirmasinya
+      // Asumsi DosenProfileService.updateProfile mendukung parameter name opsional
+      // atau Anda memiliki method khusus untuk update password.
+      // Jika DosenProfileService.updateProfile tetap memerlukan 'name', kirim nama yang ada:
+      // name: _dosenProfile!.name, 
       await _dosenService.updateProfile(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
+        // name: null, // Atau jangan sertakan parameter name sama sekali jika service mendukungnya
+        // Atau jika service Anda diubah agar name opsional:
+        // name: _dosenProfile?.name, // Kirim nama yang ada jika service membutuhkannya
+        password: newPassword,
+        passwordConfirmation: confirmPassword,
       );
-      
-      if(mounted) {
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Profile berhasil diperbarui'),
+            content: Text('Password berhasil diperbarui.'),
             backgroundColor: Colors.green,
           ),
         );
       }
-      
-      await _loadDosenProfile();
+
+      // Muat ulang profil untuk memastikan data (terutama 'updated_at') fresh
+      // dan untuk mengosongkan field password.
+      await _loadDosenProfile(); 
+
+      // Setelah profil dimuat ulang (dan _dosenProfile di-setState),
+      // kembalikan _dosenProfile yang sudah fresh ke halaman sebelumnya.
+      if (mounted && _dosenProfile != null) {
+        Navigator.pop(context, _dosenProfile);
+      } else if (mounted) {
+        Navigator.pop(context); // Fallback jika _dosenProfile null
+      }
+
     } catch (e) {
-      if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memperbarui profile: $e'),
+            content: Text('Gagal memperbarui password: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
       }
+      print("Error updating password: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -156,20 +189,19 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     }
   }
 
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
-
   void _resetForm() {
     if (_dosenProfile != null) {
+      // Nama, NIDN, Email tidak di-reset karena read-only dan sudah terisi dari _loadDosenProfile
+      // _nameController.text = _dosenProfile?.name ?? '';
+      // _emailController.text = _dosenProfile?.email ?? '';
+      // _nidnController.text = _dosenProfile?.nidn ?? '';
       setState(() {
-        _nameController.text = _dosenProfile?.name ?? '';
-        _emailController.text = _dosenProfile?.email ?? '';
-        _nidnController.text = _dosenProfile?.nidn ?? '';
+        _passwordController.clear();
+        _confirmPasswordController.clear();
       });
-       if(mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-         const SnackBar(content: Text('Form telah di-reset'), duration: Duration(seconds: 2),),
+          const SnackBar(content: Text('Form password telah di-reset'), duration: Duration(seconds: 2)),
         );
       }
     }
@@ -177,12 +209,36 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
 
   @override
   Widget build(BuildContext context) {
+    InputDecoration formFieldDecoration(String label, IconData prefixIcon, {Widget? suffixIcon, String? helperText, Color? helperColor, bool readOnly = false}) {
+      return InputDecoration(
+        labelText: label,
+        helperText: helperText,
+        helperStyle: TextStyle(color: helperColor ?? Colors.grey[600], fontSize: 12),
+        border: const OutlineInputBorder(),
+        prefixIcon: Icon(prefixIcon),
+        suffixIcon: suffixIcon,
+        filled: readOnly,
+        fillColor: readOnly ? Colors.grey[200] : null,
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pengaturan Profil', style: TextStyle(color: Colors.black87)),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Pastikan _dosenProfile yang mungkin sudah di-refresh oleh _loadDosenProfile
+            // dikembalikan jika ada perubahan (meskipun di sini hanya password)
+            // atau jika pengguna hanya ingin kembali tanpa menyimpan.
+            // Jika _updateProfile sudah memanggil Navigator.pop dengan data, ini mungkin tidak perlu.
+            // Namun, jika pengguna menekan tombol back standar, ini akan dijalankan.
+            Navigator.pop(context, _dosenProfile); 
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -192,8 +248,8 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
           if (!_isLoading && _dosenProfile != null)
             IconButton(
               icon: const Icon(Icons.restore),
-              onPressed: _isUpdating ? null : _resetForm,
-              tooltip: 'Reset ke Data Asli',
+              onPressed: _isUpdating ? null : _resetForm, // Hanya reset field password
+              tooltip: 'Reset Form Password',
             ),
         ],
       ),
@@ -210,7 +266,8 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
             )
           : _errorMessage != null
               ? Center(
-                  child: Column(
+                  // ... (Error UI, sama seperti sebelumnya) ...
+                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.error_outline, size: 64, color: Colors.red),
@@ -236,6 +293,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                   child: Column(
                     children: [
                       Card(
+                        // ... (Profile Header Card, sama seperti sebelumnya, menampilkan _dosenProfile?.name) ...
                         elevation: 4,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -244,8 +302,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                           width: double.infinity,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              // PERBAIKAN: Menggunakan withOpacity()
-                              colors: [primaryBlue, primaryBlue.withValues(alpha: 0.7)],
+                              colors: [primaryBlue, primaryBlue.withOpacity(0.7)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -256,7 +313,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                             children: [
                               const CircleAvatar(
                                 radius: 50,
-                                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'), // Ganti dengan URL gambar dosen jika ada
+                                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'),
                                 backgroundColor: Colors.white,
                               ),
                               const SizedBox(height: 16),
@@ -274,122 +331,137 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                                 'NIDN: ${_dosenProfile?.nidn ?? 'N/A'}',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  // PERBAIKAN: Menggunakan withOpacity()
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                  color: Colors.white.withOpacity(0.9),
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                _emailController.text.isNotEmpty ? _emailController.text : 'Email Tidak Tersedia',
+                                _dosenProfile?.email ?? 'Email Tidak Tersedia',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.8),
+                                  color: Colors.white.withOpacity(0.8),
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      
                       const SizedBox(height: 20),
-                      
-                      // Form edit profile
                       Card(
                         elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Edit Informasi Profil',
+                                'Informasi Profil (Data Tetap)', // Judul diubah
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              TextFormField(
+                                controller: _nameController,
+                                readOnly: true, // Nama read-only
+                                decoration: formFieldDecoration(
+                                  'Nama Lengkap',
+                                  Icons.person,
+                                  helperText: 'Data nama tidak dapat diubah dari halaman ini.',
+                                  helperColor: Colors.grey[600],
+                                  readOnly: true,
+                                  suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20)
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _nidnController,
+                                readOnly: true,
+                                decoration: formFieldDecoration(
+                                  'NIDN',
+                                  Icons.badge,
+                                  helperText: 'NIDN adalah data tetap.',
+                                  helperColor: Colors.orange[600],
+                                  readOnly: true,
+                                   suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20)
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _emailController,
+                                readOnly: true, // Email read-only
+                                decoration: formFieldDecoration(
+                                  'Email',
+                                  Icons.email,
+                                  helperText: 'Data email tidak dapat diubah dari halaman ini.',
+                                  helperColor: Colors.grey[600],
+                                  readOnly: true,
+                                   suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20)
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+                              const SizedBox(height: 24),
+                              const Text(
+                                'Ubah Password',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              
-                              // Nama field
                               TextFormField(
-                                controller: _nameController,
-                                decoration: InputDecoration(
-                                  labelText: 'Nama Lengkap',
-                                  helperText: 'Nama saat ini: ${_dosenProfile?.name ?? 'Tidak tersedia'}',
-                                  helperStyle: TextStyle(
-                                    color: Colors.blue[600],
-                                    fontSize: 12,
+                                controller: _passwordController,
+                                obscureText: !_showPassword,
+                                decoration: formFieldDecoration(
+                                  'Password Baru',
+                                  Icons.lock_outline,
+                                  helperText: 'Kosongkan jika tidak ingin mengubah password.',
+                                  suffixIcon: IconButton(
+                                    icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+                                    onPressed: () {
+                                      setState(() {
+                                        _showPassword = !_showPassword;
+                                      });
+                                    },
                                   ),
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: const Icon(Icons.person),
-                                ),
-                                onChanged: (value) {
-                                  // Tidak perlu setState di sini jika hanya untuk validasi visual di suffix
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              
-                              // NIDN field
-                              TextFormField(
-                                controller: _nidnController,
-                                readOnly: true,
-                                decoration: InputDecoration(
-                                  labelText: 'NIDN (Tidak dapat diubah)',
-                                  helperText: 'NIDN adalah data tetap',
-                                  helperStyle: TextStyle(
-                                    color: Colors.orange[600],
-                                    fontSize: 12,
-                                  ),
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: const Icon(Icons.badge),
-                                  suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20),
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              
-                              // Email field
                               TextFormField(
-                                controller: _emailController,
-                                decoration: InputDecoration(
-                                  labelText: 'Email',
-                                  helperText: 'Email saat ini: ${_dosenProfile?.email ?? 'Tidak tersedia'}',
-                                   helperStyle: TextStyle(
-                                    color: Colors.blue[600],
-                                    fontSize: 12,
+                                controller: _confirmPasswordController,
+                                obscureText: !_showConfirmPassword,
+                                decoration: formFieldDecoration(
+                                  'Konfirmasi Password Baru',
+                                  Icons.lock,
+                                  helperText: 'Ulangi password baru jika diisi.',
+                                  suffixIcon: IconButton(
+                                    icon: Icon(_showConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                                    onPressed: () {
+                                      setState(() {
+                                        _showConfirmPassword = !_showConfirmPassword;
+                                      });
+                                    },
                                   ),
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: const Icon(Icons.email),
-                                  suffixIcon: _emailController.text.isNotEmpty && _isValidEmail(_emailController.text)
-                                      ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
-                                      : _emailController.text.isNotEmpty
-                                          ? const Icon(Icons.error, color: Colors.red, size: 20)
-                                          : null, // Tidak perlu ikon edit jika kosong
                                 ),
-                                keyboardType: TextInputType.emailAddress,
-                                onChanged: (value) {
-                                  setState(() {}); // Update suffixIcon saat mengetik
-                                },
                               ),
                             ],
                           ),
                         ),
                       ),
-                      
                       const SizedBox(height: 24),
-                      
-                      // Action buttons
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: _isUpdating ? null : _resetForm,
+                              onPressed: _isUpdating ? null : _resetForm, // Hanya reset password fields
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 side: BorderSide(color: primaryBlue),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
-                              child: Text('Reset', style: TextStyle(color: primaryBlue)),
+                              child: Text('Reset Password', style: TextStyle(color: primaryBlue)),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -407,7 +479,8 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                               ),
                               child: _isUpdating
                                   ? const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      // ... (Loading indicator, sama seperti sebelumnya) ...
+                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         SizedBox(
                                           width: 16,
@@ -422,7 +495,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                                       ],
                                     )
                                   : const Text(
-                                      'Simpan Perubahan',
+                                      'Simpan Password', // Teks tombol diubah
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -432,7 +505,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16), // Padding bawah
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),

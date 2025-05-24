@@ -9,7 +9,7 @@ class MataKuliah {
   final String jamMulai;
   final String jamSelesai;
   final String hari;
-  final int ruangId;
+  final int ruangId;  
   final String createdAt;
   final String updatedAt;
   final Kelas kelas;
