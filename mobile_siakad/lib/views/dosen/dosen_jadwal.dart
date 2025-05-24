@@ -33,11 +33,7 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
   @override
   void initState() {
     super.initState();
-    if (_selectedSemester == null) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    _loadMataKuliah();
   }
 
   @override
@@ -56,21 +52,9 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
   }
 
   Future<void> _loadMataKuliah() async {
-    // MODIFIKASI: Tambahkan pengecekan jika _selectedSemester null
-    if (_selectedSemester == null) {
-      setState(() {
-        _mataKuliah = []; // Kosongkan daftar jika tidak ada semester dipilih
-        _isLoading = false;
-      });
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Silakan pilih semester terlebih dahulu.')),
-      // );
-      return;
-    }
 
     setState(() {
       _isLoading = true;
-      _mataKuliah = []; // Kosongkan list sebelum memuat data baru
     });
 
     try {
@@ -89,7 +73,7 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
       }
 
       final mataKuliah = await _service.getMataKuliah(
-        semester: _selectedSemester, // _selectedSemester sudah ada nilainya dari dropdown
+        semester: _selectedSemester,
       );
       if (mounted) {
         setState(() {
@@ -101,7 +85,6 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _mataKuliah = []; // Kosongkan jika error
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal memuat jadwal: ${e.toString()}')),
@@ -129,8 +112,7 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
     final List<String> daysOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
     Map<String, List<MataKuliah>> groupedByDay = {};
 
-    // Hanya proses pengelompokan jika _mataKuliah tidak kosong dan _selectedSemester sudah dipilih
-    if (_mataKuliah.isNotEmpty && _selectedSemester != null) {
+    if (_mataKuliah.isNotEmpty) {
       for (var day in daysOrder) {
         groupedByDay[day] = _mataKuliah.where((mk) => mk.hari == day).toList()
           ..sort((a, b) => a.jamMulai.compareTo(b.jamMulai));
@@ -211,15 +193,15 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
             const SizedBox(height: 20),
             Expanded(
               child: _isLoading
-                  ? Center(child: CircularProgressIndicator(color: Color(0xFF133B7A)))
-                  : _selectedSemester == null // MODIFIKASI: Tampilkan pesan jika belum pilih semester
+                ? Center(child: CircularProgressIndicator(color: Color(0xFF133B7A)))
+                : _mataKuliah.isEmpty
                       ? Center(
                           child: Text(
-                          'Silakan pilih semester untuk melihat jadwal.',
+                          'Tidak ada jadwal kuliah untuk $_selectedSemester.',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                         ))
-                      : activeDays.isEmpty && _mataKuliah.isEmpty // MODIFIKASI: Kondisi jika tidak ada jadwal setelah memilih
+                      : activeDays.isEmpty 
                           ? Center(
                               child: Text(
                               'Tidak ada jadwal kuliah untuk $_selectedSemester.',
@@ -227,7 +209,6 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
                               style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                             ))
                           : ListView.builder(
-                              // padding: EdgeInsets.symmetric(horizontal: 20), // Padding ini mungkin membuat tampilan kurang pas
                               itemCount: activeDays.length,
                               itemBuilder: (context, index) {
                                 final day = activeDays[index];
