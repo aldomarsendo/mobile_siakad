@@ -11,8 +11,18 @@ class DosenProfilPage extends StatefulWidget {
   State<DosenProfilPage> createState() => _DosenProfilPageState();
 }
 
-class _DosenProfilPageState extends State<DosenProfilPage> {
+class _DosenProfilPageState extends State<DosenProfilPage>
+    with SingleTickerProviderStateMixin {
+  // Palet Warna Utama
   final Color primaryBlue = const Color(0xFF133B7A);
+  final Color secondaryBlue = const Color(0xFF1E5BB0);
+
+  // Warna Tambahan dari tema
+  final Color textOnLightBg = Colors.black87;
+  final Color subtleTextOnLightBg = Colors.grey.shade700;
+  late final Color iconColorOnLightBg;
+  late final Color dividerColor;
+  late final Color cardShadowColor;
 
   // State Variables
   Dosen? _dosenProfile;
@@ -28,16 +38,38 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
   final TextEditingController _nidnController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   bool _showPassword = false;
   bool _showConfirmPassword = false;
 
+  // Animation Controller
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    iconColorOnLightBg = primaryBlue.withOpacity(0.75);
+    dividerColor = primaryBlue.withOpacity(0.2);
+    cardShadowColor = primaryBlue.withOpacity(0.08);
+
     final apiClient = ApiClient(http.Client());
     _dosenService = DosenProfileService(apiClient);
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOut,
+      ),
+    );
+
     _loadDosenProfile();
   }
 
@@ -48,6 +80,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -59,9 +92,7 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     });
 
     try {
-      print('🔄 Loading dosen profile on DosenProfilPage...');
       final profile = await _dosenService.getProfile();
-      print('✅ Profile loaded successfully on DosenProfilPage: ${profile.name}');
       if (mounted) {
         setState(() {
           _dosenProfile = profile;
@@ -70,18 +101,14 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
           _emailController.text = profile.email;
           _passwordController.clear();
           _confirmPasswordController.clear();
+          _isLoading = false;
         });
+        _animationController.forward();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage = "Gagal memuat profil: ${e.toString()}";
-        });
-      }
-      print('Error loading dosen profile on DosenProfilPage: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
           _isLoading = false;
         });
       }
@@ -92,32 +119,35 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     if (_dosenProfile == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data profil belum dimuat')),
+          SnackBar(
+              content: const Text('Data profil belum dimuat'),
+              backgroundColor: Colors.orange.shade700),
         );
       }
       return;
     }
 
-    // Nama tidak lagi diambil untuk diupdate dari sini
-    // final newName = _nameController.text.trim(); 
     final newPassword = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    // Jika password tidak diisi, tidak ada yang perlu diupdate dari halaman ini
     if (newPassword.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Masukkan password baru jika ingin mengubah.')),
+          SnackBar(
+              content:
+                  const Text('Masukkan password baru jika ingin mengubah.'),
+              backgroundColor: primaryBlue.withOpacity(0.8)),
         );
       }
       return;
     }
 
-    // Validasi Password
     if (newPassword.length < 8) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password minimal 8 karakter')),
+          SnackBar(
+              content: const Text('Password minimal 8 karakter'),
+              backgroundColor: Colors.orange.shade700),
         );
       }
       return;
@@ -125,7 +155,9 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     if (newPassword != confirmPassword) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Konfirmasi password tidak cocok')),
+          SnackBar(
+              content: const Text('Konfirmasi password tidak cocok'),
+              backgroundColor: Colors.orange.shade700),
         );
       }
       return;
@@ -136,15 +168,8 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
     });
 
     try {
-      // Panggil service HANYA dengan password dan konfirmasinya
-      // Asumsi DosenProfileService.updateProfile mendukung parameter name opsional
-      // atau Anda memiliki method khusus untuk update password.
-      // Jika DosenProfileService.updateProfile tetap memerlukan 'name', kirim nama yang ada:
-      // name: _dosenProfile!.name, 
       await _dosenService.updateProfile(
-        // name: null, // Atau jangan sertakan parameter name sama sekali jika service mendukungnya
-        // Atau jika service Anda diubah agar name opsional:
-        // name: _dosenProfile?.name, // Kirim nama yang ada jika service membutuhkannya
+        // Nama, NIDN, Email tidak diubah dari sini, hanya password
         password: newPassword,
         passwordConfirmation: confirmPassword,
       );
@@ -157,19 +182,13 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
           ),
         );
       }
+      await _loadDosenProfile();
 
-      // Muat ulang profil untuk memastikan data (terutama 'updated_at') fresh
-      // dan untuk mengosongkan field password.
-      await _loadDosenProfile(); 
-
-      // Setelah profil dimuat ulang (dan _dosenProfile di-setState),
-      // kembalikan _dosenProfile yang sudah fresh ke halaman sebelumnya.
       if (mounted && _dosenProfile != null) {
         Navigator.pop(context, _dosenProfile);
       } else if (mounted) {
-        Navigator.pop(context); // Fallback jika _dosenProfile null
+        Navigator.pop(context);
       }
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -179,7 +198,6 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
           ),
         );
       }
-      print("Error updating password: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -191,17 +209,19 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
 
   void _resetForm() {
     if (_dosenProfile != null) {
-      // Nama, NIDN, Email tidak di-reset karena read-only dan sudah terisi dari _loadDosenProfile
-      // _nameController.text = _dosenProfile?.name ?? '';
-      // _emailController.text = _dosenProfile?.email ?? '';
-      // _nidnController.text = _dosenProfile?.nidn ?? '';
       setState(() {
         _passwordController.clear();
         _confirmPasswordController.clear();
+        _showPassword = false;
+        _showConfirmPassword = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Form password telah di-reset'), duration: Duration(seconds: 2)),
+          SnackBar(
+            content: const Text('Form password telah di-reset'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: primaryBlue.withOpacity(0.8),
+          ),
         );
       }
     }
@@ -209,46 +229,67 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
 
   @override
   Widget build(BuildContext context) {
-    InputDecoration formFieldDecoration(String label, IconData prefixIcon, {Widget? suffixIcon, String? helperText, Color? helperColor, bool readOnly = false}) {
+    InputDecoration themedFormFieldDecoration(String label, IconData prefixIcon,
+        {Widget? suffixIcon,
+        String? helperText,
+        Color? helperColor, // Warna spesifik untuk helper text jika diperlukan
+        bool readOnly = false}) {
       return InputDecoration(
         labelText: label,
+        labelStyle: TextStyle(color: subtleTextOnLightBg),
         helperText: helperText,
-        helperStyle: TextStyle(color: helperColor ?? Colors.grey[600], fontSize: 12),
-        border: const OutlineInputBorder(),
-        prefixIcon: Icon(prefixIcon),
-        suffixIcon: suffixIcon,
+        helperStyle: TextStyle(
+            color: helperColor ?? subtleTextOnLightBg.withOpacity(0.8), fontSize: 12), // Sedikit lebih soft
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10.0),
+            borderSide: BorderSide(color: dividerColor)), // Border standar
+        enabledBorder: OutlineInputBorder( // Border saat tidak aktif
+            borderRadius: BorderRadius.circular(10.0),
+            borderSide: BorderSide(color: dividerColor.withOpacity(0.7))),
+        focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: primaryBlue, width: 1.5),
+            borderRadius: BorderRadius.circular(10.0)),
+        prefixIcon: Icon(prefixIcon, color: iconColorOnLightBg),
+        suffixIcon: suffixIcon != null
+            ? Theme( // Memastikan warna ikon suffix konsisten
+                data: Theme.of(context).copyWith(
+                    iconTheme: IconThemeData(color: iconColorOnLightBg.withOpacity(0.7))),
+                child: suffixIcon,
+              )
+            : null,
         filled: readOnly,
-        fillColor: readOnly ? Colors.grey[200] : null,
+        fillColor: readOnly ? Colors.grey.shade100 : null,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 12.0), // Padding konsisten
       );
     }
 
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Pengaturan Profil', style: TextStyle(color: Colors.black87)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        title: const Text('Pengaturan Profil',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 18)),
+        backgroundColor: primaryBlue,
+        elevation: 1.0,
+        iconTheme: const IconThemeData(color: Colors.white),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () {
-            // Pastikan _dosenProfile yang mungkin sudah di-refresh oleh _loadDosenProfile
-            // dikembalikan jika ada perubahan (meskipun di sini hanya password)
-            // atau jika pengguna hanya ingin kembali tanpa menyimpan.
-            // Jika _updateProfile sudah memanggil Navigator.pop dengan data, ini mungkin tidak perlu.
-            // Namun, jika pengguna menekan tombol back standar, ini akan dijalankan.
-            Navigator.pop(context, _dosenProfile); 
+            Navigator.pop(context, _dosenProfile);
           },
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _isLoading || _isUpdating ? null : _loadDosenProfile,
             tooltip: 'Refresh Data',
           ),
           if (!_isLoading && _dosenProfile != null)
             IconButton(
-              icon: const Icon(Icons.restore),
-              onPressed: _isUpdating ? null : _resetForm, // Hanya reset field password
+              icon: const Icon(Icons.settings_backup_restore_rounded),
+              onPressed: _isUpdating ? null : _resetForm,
               tooltip: 'Reset Form Password',
             ),
         ],
@@ -259,62 +300,88 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(color: primaryBlue),
-                  const SizedBox(height: 16),
-                  const Text('Memuat data profil...'),
+                  const SizedBox(height: 20),
+                  Text('Memuat data profil...',
+                      style: TextStyle(fontSize: 16, color: subtleTextOnLightBg)),
                 ],
               ),
             )
           : _errorMessage != null
               ? Center(
-                  // ... (Error UI, sama seperti sebelumnya) ...
-                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline_rounded,
+                            size: 70, color: Colors.red.shade400),
+                        const SizedBox(height: 20),
+                        Text(
+                          "Gagal Memuat Profil",
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade700),
                           textAlign: TextAlign.center,
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadDosenProfile,
-                        child: const Text('Coba Lagi'),
-                      ),
-                    ],
+                        const SizedBox(height: 10),
+                        Text(
+                          _errorMessage!,
+                          style: TextStyle(fontSize: 16, color: subtleTextOnLightBg),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 25),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                          label: const Text("Coba Lagi",
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16)),
+                          onPressed: _loadDosenProfile,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryBlue,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 30, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                        )
+                      ],
+                    ),
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Card(
-                        // ... (Profile Header Card, sama seperti sebelumnya, menampilkan _dosenProfile?.name) ...
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Container(
+              : FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        // Kartu Header Profil
+                        Container(
                           width: double.infinity,
+                          padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [primaryBlue, primaryBlue.withOpacity(0.7)],
+                              colors: [primaryBlue, secondaryBlue],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryBlue.withOpacity(0.25),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
-                          padding: const EdgeInsets.all(24),
                           child: Column(
                             children: [
-                              const CircleAvatar(
+                              CircleAvatar(
                                 radius: 50,
-                                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=3'),
-                                backgroundColor: Colors.white,
+                                backgroundImage: NetworkImage(
+                                    'https://st3.depositphotos.com/6672868/13701/v/450/depositphotos_137014128-stock-illustration-user-profile-icon.jpg'),
+                                backgroundColor: Colors.white.withOpacity(0.5),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -341,85 +408,101 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                                   fontSize: 14,
                                   color: Colors.white.withOpacity(0.8),
                                 ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
+                        const SizedBox(height: 24),
+
+                        // Kartu Form
+                        Container(
+                          padding: const EdgeInsets.all(20.0),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12.0),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: cardShadowColor,
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4))
+                              ]),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Informasi Profil (Data Tetap)', // Judul diubah
+                              Text(
+                                'Informasi Profil (Data Tetap)',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: primaryBlue,
                                 ),
                               ),
                               const SizedBox(height: 20),
                               TextFormField(
                                 controller: _nameController,
-                                readOnly: true, // Nama read-only
-                                decoration: formFieldDecoration(
+                                readOnly: true,
+                                decoration: themedFormFieldDecoration(
                                   'Nama Lengkap',
-                                  Icons.person,
-                                  helperText: 'Data nama tidak dapat diubah dari halaman ini.',
-                                  helperColor: Colors.grey[600],
+                                  Icons.person_outline_rounded,
+                                  helperText: 'Data nama tidak dapat diubah.',
+                                  helperColor: Colors.orange.shade700,
                                   readOnly: true,
-                                  suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20)
+                                  suffixIcon: Icon(Icons.lock_outline_rounded, size: 20, color: iconColorOnLightBg.withOpacity(0.5))
                                 ),
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _nidnController,
                                 readOnly: true,
-                                decoration: formFieldDecoration(
+                                decoration: themedFormFieldDecoration(
                                   'NIDN',
-                                  Icons.badge,
+                                  Icons.badge_outlined,
                                   helperText: 'NIDN adalah data tetap.',
-                                  helperColor: Colors.orange[600],
+                                  helperColor: Colors.orange.shade700,
                                   readOnly: true,
-                                   suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20)
+                                   suffixIcon: Icon(Icons.lock_outline_rounded, size: 20, color: iconColorOnLightBg.withOpacity(0.5))
                                 ),
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _emailController,
-                                readOnly: true, // Email read-only
-                                decoration: formFieldDecoration(
+                                readOnly: true,
+                                decoration: themedFormFieldDecoration(
                                   'Email',
-                                  Icons.email,
-                                  helperText: 'Data email tidak dapat diubah dari halaman ini.',
-                                  helperColor: Colors.grey[600],
+                                  Icons.email_outlined,
+                                  helperText: 'Data email tidak dapat diubah.',
+                                  helperColor: Colors.orange.shade700,
                                   readOnly: true,
-                                   suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20)
+                                   suffixIcon: Icon(Icons.lock_outline_rounded, size: 20, color: iconColorOnLightBg.withOpacity(0.5))
                                 ),
                                 keyboardType: TextInputType.emailAddress,
                               ),
                               const SizedBox(height: 24),
-                              const Text(
+                              Divider(color: dividerColor.withOpacity(0.6), thickness: 1), // Divider lebih terlihat
+                              const SizedBox(height: 16),
+                              Text(
                                 'Ubah Password',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: primaryBlue,
                                 ),
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _passwordController,
                                 obscureText: !_showPassword,
-                                decoration: formFieldDecoration(
+                                decoration: themedFormFieldDecoration(
                                   'Password Baru',
-                                  Icons.lock_outline,
-                                  helperText: 'Kosongkan jika tidak ingin mengubah password.',
+                                  Icons.lock_outline_rounded,
+                                  helperText:
+                                      'Kosongkan jika tidak ingin mengubah password. Min 8 karakter.',
                                   suffixIcon: IconButton(
-                                    icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+                                    icon: Icon(_showPassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined),
                                     onPressed: () {
                                       setState(() {
                                         _showPassword = !_showPassword;
@@ -432,15 +515,18 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                               TextFormField(
                                 controller: _confirmPasswordController,
                                 obscureText: !_showConfirmPassword,
-                                decoration: formFieldDecoration(
+                                decoration: themedFormFieldDecoration(
                                   'Konfirmasi Password Baru',
-                                  Icons.lock,
+                                  Icons.lock_person_outlined, // Ikon berbeda
                                   helperText: 'Ulangi password baru jika diisi.',
                                   suffixIcon: IconButton(
-                                    icon: Icon(_showConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                                    icon: Icon(_showConfirmPassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined),
                                     onPressed: () {
                                       setState(() {
-                                        _showConfirmPassword = !_showConfirmPassword;
+                                        _showConfirmPassword =
+                                            !_showConfirmPassword;
                                       });
                                     },
                                   ),
@@ -449,64 +535,72 @@ class _DosenProfilPageState extends State<DosenProfilPage> {
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _isUpdating ? null : _resetForm, // Hanya reset password fields
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: BorderSide(color: primaryBlue),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: Text('Reset Password', style: TextStyle(color: primaryBlue)),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: _isUpdating ? null : _updateProfile,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryBlue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                        const SizedBox(height: 24),
+
+                        // Tombol Aksi
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.settings_backup_restore_rounded,
+                                    size: 20),
+                                onPressed: _isUpdating ? null : _resetForm,
+                                style: OutlinedButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  side: BorderSide(
+                                      color: primaryBlue.withOpacity(0.7)),
+                                  foregroundColor: primaryBlue,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12.0),
+                                  ),
                                 ),
+                                label: const Text('Reset Password',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15)),
                               ),
-                              child: _isUpdating
-                                  ? const Row(
-                                      // ... (Loading indicator, sama seperti sebelumnya) ...
-                                       mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text('Menyimpan...'),
-                                      ],
-                                    )
-                                  : const Text(
-                                      'Simpan Password', // Teks tombol diubah
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton.icon(
+                                icon: _isUpdating
+                                    ? Container(
+                                        width: 18,
+                                        height: 18,
+                                        margin: const EdgeInsets.only(right: 8),
+                                        child: const CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    Colors.white)))
+                                    : const Icon(Icons.save_alt_rounded, size: 20),
+                                onPressed: _isUpdating ? null : _updateProfile,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryBlue,
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12.0),
+                                  ),
+                                  elevation: 2,
+                                ),
+                                label: Text(
+                                    _isUpdating
+                                        ? 'Menyimpan...'
+                                        : 'Simpan Password',
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16), // Tambahan padding bawah
+                      ],
+                    ),
                   ),
                 ),
     );
