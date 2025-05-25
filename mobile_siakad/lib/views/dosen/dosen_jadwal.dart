@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobile_siakad/models/matakuliah_model.dart';
+import 'package:mobile_siakad/models/matakuliah_model.dart'; // Pastikan path dan model ini sesuai
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/services/dosen/dosen_jadwal_service.dart';
 import 'package:mobile_siakad/services/api_client.dart';
-import 'package:intl/intl.dart'; // Untuk format tanggal
 
 class DosenJadwalPage extends StatefulWidget {
   const DosenJadwalPage({Key? key}) : super(key: key);
@@ -14,70 +13,57 @@ class DosenJadwalPage extends StatefulWidget {
 }
 
 class _DosenJadwalPageState extends State<DosenJadwalPage> {
-  final AuthService _authService;
-  final DosenJadwalService _service;
-  List<MataKuliah> _mataKuliah = [];
-  bool _isLoading = true; // MODIFIKASI: Default ke true jika ingin load data di awal
-  final List<String> _semesterOptions = List.generate(8, (index) => 'Semester ${index + 1}');
+  late final ApiClient _apiClient;
+  late final AuthService _authService;
+  late final DosenJadwalService _jadwalService;
 
-  // TAMBAHKAN: Deklarasi state variable untuk semester yang dipilih
-  String? _selectedSemester;
+  List<MataKuliah> _allMataKuliah = []; 
+  Map<String, List<MataKuliah>> _groupedJadwalByDay = {};
+  
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  _DosenJadwalPageState()
-      : _authService = AuthService(ApiClient(http.Client())),
-        _service = DosenJadwalService(
-            AuthService(ApiClient(http.Client())),
-            ApiClient(http.Client()),
-            );
+  final Color primaryBlue = const Color(0xFF133B7A);
+  final List<String> _daysOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
   @override
   void initState() {
     super.initState();
-    _loadMataKuliah();
+    _apiClient = ApiClient(http.Client());
+    _authService = AuthService(_apiClient); 
+    _jadwalService = DosenJadwalService(_authService, _apiClient);
+    _loadAllMataKuliah();
   }
 
   @override
   void dispose() {
-    try {
-      (_authService as dynamic)._apiClient?.client?.close();
-    } catch (e) {
-      print("Error closing authService client: $e");
-    }
-    try {
-      (_service as dynamic)._apiClient?.client?.close();
-    } catch (e) {
-      print("Error closing service client: $e");
-    }
+    print("DosenJadwalPage dispose called.");
     super.dispose();
   }
 
-  Future<void> _loadMataKuliah() async {
-
+  Future<void> _loadAllMataKuliah() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
+      _errorMessage = null;
     });
 
     try {
       final token = await _authService.getToken();
-      if (token == null) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Sesi Anda berakhir. Silakan login kembali.')),
-          );
-          Navigator.pushReplacementNamed(context, '/login');
-        }
+      if (token == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sesi Anda berakhir. Silakan login kembali.')),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
         return;
       }
 
-      final mataKuliah = await _service.getMataKuliah(
-        semester: _selectedSemester,
-      );
+      final fetchedMataKuliah = await _jadwalService.getMataKuliah(); 
+      
       if (mounted) {
         setState(() {
-          _mataKuliah = mataKuliah;
+          _allMataKuliah = fetchedMataKuliah;
+          _groupAndSortJadwal(); 
           _isLoading = false;
         });
       }
@@ -85,236 +71,246 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _errorMessage = 'Gagal memuat jadwal: ${e.toString()}';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat jadwal: ${e.toString()}')),
-        );
       }
-      print('Error loading mata kuliah: $e');
+      print('Error loading all mata kuliah: $e');
     }
   }
 
-  // Fungsi untuk mendapatkan tanggal berdasarkan hari dalam minggu saat ini
-  DateTime getDateForDay(String day, DateTime referenceDate) {
-    final days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-    final referenceDayIndex = referenceDate.weekday - 1; // Senin = 0, Minggu = 6
-    final targetDayIndex = days.indexOf(day);
-
-    if (targetDayIndex == -1) { // Jika hari tidak ditemukan
-        return referenceDate; // Kembalikan tanggal referensi atau handle error
+  void _groupAndSortJadwal() {
+    Map<String, List<MataKuliah>> grouped = {};
+    for (var day in _daysOrder) {
+      grouped[day] = _allMataKuliah.where((mk) => mk.hari.toLowerCase() == day.toLowerCase()).toList()
+        ..sort((a, b) => a.jamMulai.compareTo(b.jamMulai));
     }
-    final diff = targetDayIndex - referenceDayIndex;
-    return referenceDate.add(Duration(days: diff));
+    _groupedJadwalByDay = grouped;
+  }
+
+  Widget _buildScheduleSlot(MataKuliah mk, int slotNumber) {
+    // String dosenDisplayInfo = "N/A"; // Tidak digunakan lagi
+    // if (mk.idDosen != 0) { 
+    //      dosenDisplayInfo = "Pengajar ID: ${mk.idDosen}";
+    // }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      elevation: 2.0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12.0),
+          gradient: LinearGradient(
+            colors: [primaryBlue.withOpacity(0.8), primaryBlue],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+           boxShadow: [
+            BoxShadow(
+              color: primaryBlue.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$slotNumber',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mk.namaMk,
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    const SizedBox(height: 6),
+                    // Menghilangkan baris yang menampilkan dosenDisplayInfo
+                    // if (dosenDisplayInfo.isNotEmpty && dosenDisplayInfo != "N/A")
+                    //   _buildInfoRow(Icons.person_outline, dosenDisplayInfo, color: Colors.white.withOpacity(0.9)),
+                    _buildInfoRow(Icons.access_time_outlined, '${mk.jamMulai.substring(0, 5)} - ${mk.jamSelesai.substring(0, 5)}', color: Colors.white.withOpacity(0.9)),
+                    _buildInfoRow(Icons.location_on_outlined, mk.ruang.namaRuang, color: Colors.white.withOpacity(0.9)),
+                    _buildInfoRow(Icons.class_outlined, mk.kelas.namaKelas, color: Colors.white.withOpacity(0.9)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: color ?? Colors.white.withOpacity(0.8)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13.5, color: color ?? Colors.white.withOpacity(0.8)),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayScheduleSection(String day, List<MataKuliah> jadwalForDay) {
+    if (jadwalForDay.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 24.0, bottom: 12.0),
+          child: Text(
+            day,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: primaryBlue,
+            ),
+          ),
+        ),
+        ListView.builder(
+          itemCount: jadwalForDay.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemBuilder: (context, index) {
+            final mk = jadwalForDay[index];
+            return _buildScheduleSlot(mk, index + 1);
+          },
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<String> daysOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
-    Map<String, List<MataKuliah>> groupedByDay = {};
-
-    if (_mataKuliah.isNotEmpty) {
-      for (var day in daysOrder) {
-        groupedByDay[day] = _mataKuliah.where((mk) => mk.hari == day).toList()
-          ..sort((a, b) => a.jamMulai.compareTo(b.jamMulai));
-      }
-    }
-
-    final activeDays = daysOrder.where((day) => groupedByDay[day]?.isNotEmpty ?? false).toList();
-    final referenceDate = DateTime(2025, 5, 23); // Jumat
-    final formatter = DateFormat('d MMMM yyyy', 'id_ID'); // Format tanggal diubah ke 'd MMMM yyyy'
+    final activeDaysWithSchedule = _daysOrder
+        .where((day) => _groupedJadwalByDay[day]?.isNotEmpty ?? false)
+        .toList();
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        leading: BackButton(color: Colors.black87),
+        leading: BackButton(color: primaryBlue),
         backgroundColor: Colors.white,
-        elevation: 0,
+        elevation: 1,
+        surfaceTintColor: Colors.white,
         title: Text(
-          'Jadwal Kuliah',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          'Jadwal Mengajar',
+          style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold, fontSize: 20),
         ),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.school_outlined, color: Color(0xFF133B7A)),
-                SizedBox(width: 8),
-                Text(
-                  'Jadwal Kuliah saya',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF133B7A)),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Semester',
-                labelStyle: TextStyle(color: Color(0xFF133B7A)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: Colors.grey.shade400),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: Color(0xFF133B7A), width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 15.0),
-              ),
-              value: _selectedSemester,
-              hint: const Text('Pilih Semester'),
-              items: _semesterOptions
-                  .map((semesterValue) => DropdownMenuItem(
-                        value: semesterValue,
-                        child: Text(semesterValue),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null && value != _selectedSemester) { // MODIFIKASI: Cek jika nilai benar-benar berubah
-                  setState(() {
-                    _selectedSemester = value;
-                    // _isLoading = true; // isLoading akan di-set di _loadMataKuliah
-                  });
-                  _loadMataKuliah(); // Panggil fungsi untuk memuat data
-                }
-              },
-              isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: Color(0xFF133B7A)),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: _isLoading
-                ? Center(child: CircularProgressIndicator(color: Color(0xFF133B7A)))
-                : _mataKuliah.isEmpty
-                      ? Center(
-                          child: Text(
-                          'Tidak ada jadwal kuliah untuk $_selectedSemester.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                        ))
-                      : activeDays.isEmpty 
-                          ? Center(
-                              child: Text(
-                              'Tidak ada jadwal kuliah untuk $_selectedSemester.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                            ))
-                          : ListView.builder(
-                              itemCount: activeDays.length,
-                              itemBuilder: (context, index) {
-                                final day = activeDays[index];
-                                final mataKuliahList = groupedByDay[day]!;
-                                final date = formatter.format(getDateForDay(day, referenceDate));
+      body: RefreshIndicator(
+        onRefresh: _loadAllMataKuliah,
+        color: primaryBlue,
+        child: _isLoading
+            ? Center(child: CircularProgressIndicator(color: primaryBlue))
+            : _errorMessage != null 
+                ? _buildErrorWidget()
+                : _allMataKuliah.isEmpty
+                    ? _buildEmptyScheduleWidget()
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+                        itemCount: activeDaysWithSchedule.length,
+                        itemBuilder: (context, index) {
+                          final day = activeDaysWithSchedule[index];
+                          final mataKuliahListForDay = _groupedJadwalByDay[day]!;
+                          return _buildDayScheduleSection(day, mataKuliahListForDay);
+                        },
+                      ),
+      ),
+    );
+  }
 
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 4.0, right: 4.0, top: 8.0, bottom: 8.0), // Sesuaikan padding
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            '$day, $date',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          Spacer(),
-                                          Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                                        ],
-                                      ),
-                                    ),
-                                    // SizedBox(height: 16), // Kurangi spasi jika terlalu banyak
-                                    ...mataKuliahList.map((mk) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 16.0),
-                                        child: _classCard(
-                                          time: '${mk.jamMulai.substring(0, 5)} - ${mk.jamSelesai.substring(0, 5)}',
-                                          subject: mk.namaMk,
-                                          room: mk.ruang.namaRuang, // Pastikan model MataKuliah Anda memiliki objek ruang yang benar
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ],
-                                );
-                              },
-                            ),
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off, color: Colors.red.shade300, size: 70),
+            const SizedBox(height: 20),
+            Text(
+              "Gagal Memuat Jadwal",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+              textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage ?? "Terjadi kesalahan yang tidak diketahui.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 25),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text("Coba Lagi", style: TextStyle(color: Colors.white)),
+              onPressed: _loadAllMataKuliah,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                textStyle: const TextStyle(fontSize: 16)
+              ),
+            )
           ],
         ),
       ),
     );
   }
 
-  Widget _classCard({
-    required String time,
-    required String subject,
-    required String room,
-  }) {
-    return Container(
-      width: double.infinity, // Agar card memenuhi lebar
-      decoration: BoxDecoration(
-        color: Color(0xFF133B7A),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            time,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontWeight: FontWeight.normal,
-              fontSize: 13,
+  Widget _buildEmptyScheduleWidget() {
+     return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.event_note_outlined, size: 80, color: Colors.grey.shade400),
+            const SizedBox(height: 20),
+            Text(
+              'Tidak Ada Jadwal',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
             ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            subject,
-            style: TextStyle(
-              fontSize: 17, // Sedikit lebih besar agar mudah dibaca
-              fontWeight: FontWeight.w600, // Lebih tebal
-              color: Colors.white,
+            const SizedBox(height: 8),
+            Text(
+              'Saat ini tidak ada jadwal mengajar yang tersedia untuk Anda.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             ),
-          ),
-          SizedBox(height: 8), // Tambah spasi
-          Row(
-            children: [
-              Icon(Icons.location_on_outlined, size: 16, color: Colors.white.withOpacity(0.8)),
-              SizedBox(width: 6), // Tambah spasi
-              Expanded( // Agar teks ruang tidak overflow jika panjang
-                child: Text(
-                  room,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      ));
   }
 }

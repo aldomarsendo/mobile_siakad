@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_siakad/views/dosen/dosen_jadwal.dart';
-import 'package:mobile_siakad/views/dosen/dosen_nilai.dart';
+//import 'package:mobile_siakad/views/dosen/dosen_nilai.dart';
 //import 'package:mobile_siakad/views/dosen/dosen_frs.dart';
 import 'package:mobile_siakad/views/dosen/dosen_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:mobile_siakad/services/dosen/dosen_jadwal_service.dart';
 import 'package:mobile_siakad/models/matakuliah_model.dart';
 import 'package:mobile_siakad/views/dosen/frs/kelas_wali.dart';
+import 'package:mobile_siakad/views/dosen/nilai/list_matakuliah.dart';
 
 class DosenDashboardPage extends StatefulWidget {
   const DosenDashboardPage({super.key});
@@ -188,7 +189,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                         Text(
                           _currentUser?.name ?? 'Nama Dosen',
                           style: const TextStyle(
-                            color: Colors.white,
+                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
@@ -312,7 +313,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> {
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   _menuButton(context, Icons.calendar_today_outlined, "Jadwal", primaryBlue, DosenJadwalPage()),
-                                  _menuButton(context, Icons.grade_outlined, "Nilai", primaryBlue, DosenNilaiPage()),
+                                  _menuButton(context, Icons.grade_outlined, "Nilai", primaryBlue, ListMatakuliahPage()),
                                   _menuButton(context, Icons.file_copy_outlined, "FRS", primaryBlue, KelasWaliPage()),
                                 ],
                               ),
