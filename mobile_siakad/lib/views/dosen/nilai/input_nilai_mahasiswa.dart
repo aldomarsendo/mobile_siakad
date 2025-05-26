@@ -1,7 +1,6 @@
 // lib/views/dosen/nilai/input_nilai_mahasiswa.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Untuk TextInputFormatter
-import 'package:mobile_siakad/models/mahasiswa_model.dart' hide Kelas; 
 import 'package:mobile_siakad/models/matakuliah_model.dart'; 
 import 'package:mobile_siakad/models/nilai_model.dart'; 
 import 'package:mobile_siakad/services/api_client.dart';

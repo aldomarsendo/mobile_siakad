@@ -1,12 +1,63 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:mobile_siakad/services/api_client.dart';
+import 'package:mobile_siakad/services/dosen/dosen_frs_service.dart';
+import 'package:mobile_siakad/models/frs_model.dart';
 
-class DosenFrsPage extends StatelessWidget {
-  final List<Map<String, String>> mataKuliah = [
-    {'kode': '3030', 'nama': 'Kecerdasan Buatan', 'nilai': 'A'},
-    {'kode': '3031', 'nama': 'Workshop Desain Pengalaman Pengguna', 'nilai': 'A'},
-    {'kode': '3032', 'nama': 'Workshop Pemrogramman Perangkat Bergerak', 'nilai': 'A'},
-    {'kode': '3033', 'nama': 'Workshop Administrasi Jaringan', 'nilai': 'A'},
-  ];
+class DosenFrsPage extends StatefulWidget {
+  const DosenFrsPage({Key? key}) : super(key: key);
+
+  @override
+  State<DosenFrsPage> createState() => _DosenFrsPageState();
+}
+
+class _DosenFrsPageState extends State<DosenFrsPage> {
+
+  List<FrsItem> _pendingFrsList = [];
+  bool _isLoading = true;
+  String? _userMessage;
+  bool _isError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPendingFrs();
+  }
+
+  Future<void> _fetchPendingFrs() async {
+    
+    setState(() {
+      _isLoading = true;
+      _userMessage = null;
+      _isError = false;
+    });
+
+    try {
+      final ApiClient apiClient = ApiClient(http.Client());
+      final DosenFrsService dosenFrsService = DosenFrsService(apiClient);
+      final frsItems = await dosenFrsService.getPendingFrs(); 
+      if (mounted) { // Pastikan widget masih ada di tree sebelum memanggil setState
+        setState(() {
+          _pendingFrsList = frsItems;
+          _isLoading = false;
+          if (_pendingFrsList.isEmpty) {
+
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isError = true;
+        });
+        String errorMessage = e.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat FRS pending: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +123,10 @@ class DosenFrsPage extends StatelessWidget {
             SizedBox(height: 24),
             Expanded(
               child: ListView.builder(
-                itemCount: mataKuliah.length,
+                itemCount: _pendingFrsList.length,
                 itemBuilder: (context, index) {
-                  final mk = mataKuliah[index];
+                  final frs = _pendingFrsList[index];
+                  final masterMk = frs.jadwalKuliah?.masterMatakuliah; // Bisa null
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -90,7 +142,7 @@ class DosenFrsPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Kode MK : ${mk['kode']}',
+                                'Kode MK : ${masterMk?.kodeMk ?? 'N/A'}',
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 14,
@@ -98,7 +150,7 @@ class DosenFrsPage extends StatelessWidget {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                mk['nama']!,
+                                masterMk?.namaMk ?? 'N/A',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -109,7 +161,7 @@ class DosenFrsPage extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          mk['nilai']!,
+                          frs.status,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,

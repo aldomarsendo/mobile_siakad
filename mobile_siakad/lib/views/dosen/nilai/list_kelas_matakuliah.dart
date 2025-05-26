@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_siakad/models/matakuliah_model.dart'; // Mengimpor MataKuliah dan Kelas yang terkait dengannya
-// import 'package:mobile_siakad/models/mahasiswa_model.dart' hide Kelas; // Jika tidak digunakan, bisa di-comment
+import 'package:mobile_siakad/models/matakuliah_model.dart'; 
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/services/dosen/dosen_jadwal_service.dart';
@@ -98,16 +97,12 @@ class _ListKelasMatakuliahPageState extends State<ListKelasMatakuliahPage> with 
 
       Map<int, Kelas> uniqueKelasMap = {};
       for (var schedule in schedulesForThisCourse) {
-        if (schedule.kelas != null) { 
-          // Asumsi 'idKelas' non-nullable di model Kelas dari matakuliah_model
-          if (!uniqueKelasMap.containsKey(schedule.kelas.idKelas)) {
-            uniqueKelasMap[schedule.kelas.idKelas] = schedule.kelas;
-          }
+        if (!uniqueKelasMap.containsKey(schedule.kelas.idKelas)) {
+          uniqueKelasMap[schedule.kelas.idKelas] = schedule.kelas;
         }
       }
       
       List<Kelas> displayableClasses = uniqueKelasMap.values.toList();
-      // Asumsi 'namaKelas' non-nullable di model Kelas dari matakuliah_model
       displayableClasses.sort((a,b) => (a.namaKelas).toLowerCase().compareTo((b.namaKelas).toLowerCase()));
       
       if (mounted) {
@@ -140,9 +135,6 @@ class _ListKelasMatakuliahPageState extends State<ListKelasMatakuliahPage> with 
         borderRadius: BorderRadius.circular(10.0),
         onTap: () {
           print('Pilih kelas: ${kelas.namaKelas} (ID: ${kelas.idKelas}) untuk Mata Kuliah: ${widget.selectedCourse.namaMk}');
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(content: Text('Pilih kelas: ${kelas.namaKelas}')),
-          // ); // Dimatikan agar tidak mengganggu alur navigasi
           Navigator.push(
             context,
             MaterialPageRoute(

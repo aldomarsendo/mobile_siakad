@@ -88,9 +88,9 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
         .where((frs) => frs.status.toLowerCase() == 'ditolak')
         .toList();
     
-    _pendingFrsForThisStudent.sort((a, b) => a.matakuliah.namaMk.compareTo(b.matakuliah.namaMk));
-    _approvedFrsForThisStudent.sort((a, b) => a.matakuliah.namaMk.compareTo(b.matakuliah.namaMk));
-    _rejectedFrsForThisStudent.sort((a, b) => a.matakuliah.namaMk.compareTo(b.matakuliah.namaMk));
+    _pendingFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk?.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
+    _approvedFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk?.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
+    _rejectedFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk?.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
 
     setState(() {});
   }
@@ -103,7 +103,7 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Konfirmasi Aksi FRS', style: TextStyle(color: primaryBlue)),
-          content: Text('Anda yakin ingin ${newStatus == 'disetujui' ? 'menyetujui' : 'menolak'} FRS untuk mata kuliah "${frsItemToUpdate.matakuliah.namaMk}"?'),
+          content: Text('Anda yakin ingin ${newStatus == 'disetujui' ? 'menyetujui' : 'menolak'} FRS untuk mata kuliah "${frsItemToUpdate.jadwalKuliah?.masterMatakuliah?.namaMk}"?'),
           actions: <Widget>[
             TextButton(
               child: const Text('Batal', style: TextStyle(color: Colors.grey)),
@@ -139,8 +139,8 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
         _categorizeFrsForThisStudent();
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('FRS untuk "${updatedFrsFromServer.matakuliah.namaMk}" berhasil di-$newStatus.'),
+          SnackBar( 
+            content: Text('FRS untuk "${updatedFrsFromServer.jadwalKuliah?.masterMatakuliah?.namaMk}" berhasil di-$newStatus.'),
             backgroundColor: newStatus == 'disetujui' ? approvedColor : rejectedColor,
             duration: const Duration(seconds: 3),
           ),
@@ -252,10 +252,10 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
                       }),
                       cells: [
                         DataCell(Center(child: Text((index + 1).toString()))),
-                        DataCell(Text(frs.matakuliah.kodeMk)),
-                        DataCell(SizedBox(width: 180, child: Text(frs.matakuliah.namaMk, overflow: TextOverflow.ellipsis, maxLines: 2))),
-                        DataCell(Center(child: Text(frs.matakuliah.sks.toString()))),
-                        DataCell(SizedBox(width: 150, child: Text(frs.matakuliah.dosen?.user.name ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
+                        DataCell(Text(frs.jadwalKuliah?.masterMatakuliah?.kodeMk ?? 'N/A')),
+                        DataCell(SizedBox(width: 180, child: Text(frs.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
+                        DataCell(Center(child: Text(frs.jadwalKuliah?.masterMatakuliah?.sks.toString() ?? '0'))),
+                        DataCell(SizedBox(width: 150, child: Text(frs.jadwalKuliah?.dosen?.user.name ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
                         if (showActions)
                           DataCell(
                             isCurrentlyProcessing
