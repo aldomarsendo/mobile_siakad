@@ -40,21 +40,60 @@ class DosenFrsService {
   }
 }
 
-Future<FrsItem> updateFrsStatus(int idFrs, String status) async {
+// lib/services/dosen/dosen_frs_service.dart
+
+// ... (getPendingFrs dan getAllFrsForMahasiswa tetap sama) ...
+
+Future<FrsItem> updateFrsStatus(int idFrs, String status) async { // Hapus parameter catatanWali
+  try {
+    final body = {
+      'id_frs': idFrs,
+      'status': status,
+      // Tidak ada 'catatan_wali' lagi di body
+    };
+    // Path sudah benar jika ApiClient base URL Anda adalah '.../api/mobile'
+    final responseData = await _apiClient.put('dosen/frs/approve', body: body); 
+    
+    if (responseData != null && responseData is Map<String, dynamic> && responseData['frs'] != null) {
+      return FrsItem.fromJson(responseData['frs'] as Map<String, dynamic>);
+    } else {
+      print('updateFrsStatus: Respons API tidak valid atau key "frs" tidak ditemukan. Respons: $responseData');
+      throw Exception('Gagal memperbarui status FRS atau respons API tidak valid.');
+    }
+  } catch (e) {
+    print('Error di updateFrsStatus: $e');
+    throw Exception('Gagal memperbarui status FRS: $e');
+  }
+}
+
+// Method editFrsByDosenWali bisa Anda HAPUS jika tidak jadi digunakan,
+// atau biarkan jika suatu saat diperlukan untuk mengganti MK.
+// Untuk saat ini, kita fokus pada perubahan status menggunakan updateFrsStatus.
+
+  Future<FrsItem> editFrsByDosenWali({
+    required int idFrs,
+    required int idMkJadwalBaru,
+    String? catatanWaliEdit,
+  }) async {
     try {
-      final body = {
-        'id_frs': idFrs,
-        'status': status,
+      final String endpoint = 'mobile/dosen/frs/$idFrs/edit-by-wali';
+      final Map<String, dynamic> body = {
+        'id_mk_jadwal_baru': idMkJadwalBaru,
+        if (catatanWaliEdit != null && catatanWaliEdit.isNotEmpty) 
+          'catatan_wali_edit': catatanWaliEdit,
       };
-      final responseData = await _apiClient.put('dosen/frs/approve', body: body);
-      
+
+      final responseData = await _apiClient.put(endpoint, body: body);
+
       if (responseData != null && responseData is Map<String, dynamic> && responseData['frs'] != null) {
         return FrsItem.fromJson(responseData['frs'] as Map<String, dynamic>);
       } else {
-        throw Exception('Gagal memperbarui status FRS atau respons API tidak valid.');
+        print('editFrsByDosenWali: Respons API tidak valid atau key "frs" tidak ditemukan. Respons: $responseData');
+        throw Exception('Gagal mengedit FRS atau respons API tidak valid.');
       }
     } catch (e) {
-      throw Exception('Gagal memperbarui status FRS: $e');
+      print('Error di editFrsByDosenWali: $e');
+      throw Exception('Gagal mengedit FRS: $e');
     }
   }
 }

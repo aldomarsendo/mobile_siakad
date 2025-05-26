@@ -1,11 +1,9 @@
-// lib/views/dosen/frs/detail_frs.dart
 import 'package:flutter/material.dart';
 import 'package:mobile_siakad/models/mahasiswa_model.dart';
 import 'package:mobile_siakad/models/frs_model.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:mobile_siakad/services/dosen/dosen_frs_service.dart';
 import 'package:http/http.dart' as http;
-// import 'package:intl/intl.dart'; // Tidak digunakan saat ini
 
 class DetailFrsPage extends StatefulWidget {
   final Mahasiswa mahasiswa;
@@ -17,10 +15,7 @@ class DetailFrsPage extends StatefulWidget {
 }
 
 class _DetailFrsPageState extends State<DetailFrsPage> {
-  // Menyimpan semua FRS mahasiswa ini yang diambil dari backend
-  List<FrsItem> _allFrsForThisStudentFromBackend = []; 
-  
-  // List turunan untuk ditampilkan di UI
+  List<FrsItem> _allFrsForThisStudentFromBackend = [];
   List<FrsItem> _pendingFrsForThisStudent = [];
   List<FrsItem> _approvedFrsForThisStudent = [];
   List<FrsItem> _rejectedFrsForThisStudent = [];
@@ -28,7 +23,7 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
   bool _isLoading = true;
   String? _errorMessage;
   bool _isUpdatingStatus = false;
-  int? _currentlyProcessingFrsId; // Untuk loading per baris
+  int? _currentlyProcessingFrsId;
 
   late final DosenFrsService _dosenFrsService;
   final Color primaryBlue = const Color(0xFF133B7A);
@@ -52,17 +47,12 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
     });
 
     try {
-      // PENTING: Panggil metode baru untuk mendapatkan SEMUA FRS mahasiswa ini
-      // Ini mengasumsikan DosenFrsService.getAllFrsForMahasiswa sudah diimplementasikan
-      // dan backend memiliki endpoint seperti GET /dosen/frs/mahasiswa/{id_mahasiswa}
       _allFrsForThisStudentFromBackend = await _dosenFrsService.getAllFrsForMahasiswa(widget.mahasiswa.idMahasiswa);
-      
       _categorizeFrsForThisStudent();
-
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = "Gagal memuat data FRS: ${e.toString()}";
+          _errorMessage = "Gagal memuat data FRS: ${e.toString().replaceFirst('Exception: ', '')}";
         });
       }
       print("Error fetching FRS data for student ${widget.mahasiswa.idMahasiswa}: $e");
@@ -88,9 +78,13 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
         .where((frs) => frs.status.toLowerCase() == 'ditolak')
         .toList();
     
-    _pendingFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk?.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
-    _approvedFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk?.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
-    _rejectedFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk?.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
+    // Mengurutkan berdasarkan nama mata kuliah
+    Comparator<FrsItem> frsSorter = (a, b) => 
+        (a.jadwalKuliah?.masterMatakuliah?.namaMk ?? '').compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '');
+
+    _pendingFrsForThisStudent.sort(frsSorter);
+    _approvedFrsForThisStudent.sort(frsSorter);
+    _rejectedFrsForThisStudent.sort(frsSorter);
 
     setState(() {});
   }
@@ -98,19 +92,35 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
   Future<void> _handleUpdateFrsStatus(FrsItem frsItemToUpdate, String newStatus) async {
     if (!mounted || _isUpdatingStatus) return;
     
+    String actionText = '';
+    String confirmMessage = '';
+
+    if (newStatus == 'disetujui') {
+      actionText = 'Setujui';
+      confirmMessage = 'Anda yakin ingin menyetujui FRS untuk mata kuliah "${frsItemToUpdate.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'ini'}"?';
+    } else if (newStatus == 'ditolak') {
+      actionText = 'Tolak';
+      confirmMessage = 'Anda yakin ingin menolak FRS untuk mata kuliah "${frsItemToUpdate.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'ini'}"?';
+    } else if (newStatus == 'pending') {
+      actionText = 'Kembalikan ke Pending';
+      confirmMessage = 'Anda yakin ingin mengembalikan status FRS untuk mata kuliah "${frsItemToUpdate.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'ini'}" menjadi Pending?';
+    } else {
+      return; // Status tidak dikenal
+    }
+
     bool confirm = await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Konfirmasi Aksi FRS', style: TextStyle(color: primaryBlue)),
-          content: Text('Anda yakin ingin ${newStatus == 'disetujui' ? 'menyetujui' : 'menolak'} FRS untuk mata kuliah "${frsItemToUpdate.jadwalKuliah?.masterMatakuliah?.namaMk}"?'),
+          title: Text('Konfirmasi: $actionText FRS', style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold)),
+          content: Text(confirmMessage),
           actions: <Widget>[
             TextButton(
               child: const Text('Batal', style: TextStyle(color: Colors.grey)),
               onPressed: () => Navigator.of(context).pop(false),
             ),
             TextButton(
-              child: Text(newStatus == 'disetujui' ? 'Setujui' : 'Tolak', style: TextStyle(color: newStatus == 'disetujui' ? approvedColor : rejectedColor)),
+              child: Text(actionText, style: TextStyle(color: newStatus == 'disetujui' ? approvedColor : (newStatus == 'ditolak' ? rejectedColor : pendingColor))),
               onPressed: () => Navigator.of(context).pop(true),
             ),
           ],
@@ -126,22 +136,25 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
     });
 
     try {
+      // Menggunakan method updateFrsStatus dari service (tanpa catatanWali)
       final FrsItem updatedFrsFromServer = await _dosenFrsService.updateFrsStatus(frsItemToUpdate.idFrs, newStatus);
       
       if (mounted) {
+        // Update list lokal dengan data dari server
         int index = _allFrsForThisStudentFromBackend.indexWhere((item) => item.idFrs == updatedFrsFromServer.idFrs);
         if (index != -1) {
           _allFrsForThisStudentFromBackend[index] = updatedFrsFromServer;
         } else {
-          _allFrsForThisStudentFromBackend.removeWhere((item) => item.idFrs == updatedFrsFromServer.idFrs);
+          // Jika tidak ditemukan (seharusnya tidak terjadi jika update berhasil), tambahkan saja
+           _allFrsForThisStudentFromBackend.removeWhere((item) => item.idFrs == updatedFrsFromServer.idFrs); // Hapus dulu jika ada duplikat ID (jarang)
           _allFrsForThisStudentFromBackend.add(updatedFrsFromServer);
         }
-        _categorizeFrsForThisStudent();
+        _categorizeFrsForThisStudent(); // Kategorikan ulang dan update UI
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar( 
-            content: Text('FRS untuk "${updatedFrsFromServer.jadwalKuliah?.masterMatakuliah?.namaMk}" berhasil di-$newStatus.'),
-            backgroundColor: newStatus == 'disetujui' ? approvedColor : rejectedColor,
+            content: Text('Status FRS untuk "${updatedFrsFromServer.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'MK'}" berhasil diubah menjadi ${newStatus.toUpperCase()}.'),
+            backgroundColor: newStatus == 'disetujui' ? approvedColor : (newStatus == 'ditolak' ? rejectedColor : pendingColor),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -152,7 +165,7 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
           SnackBar(content: Text('Gagal memperbarui status FRS: $e'), backgroundColor: Colors.red),
         );
       }
-      print("Error updating FRS status: $e");
+      print("Error updating FRS status for frsId ${frsItemToUpdate.idFrs}: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -167,19 +180,17 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
       child: Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Detail Mahasiswa", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryBlue)),
-              const SizedBox(height: 12),
+              Text("Detail Mahasiswa", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryBlue)),
+              const Divider(height: 20),
               _infoRow("NRP", widget.mahasiswa.nrp),
               _infoRow("Nama", widget.mahasiswa.nama),
-              _infoRow("Program Studi", widget.mahasiswa.prodi),
-              _infoRow("Kelas", widget.mahasiswa.kelas),
             ],
           ),
         ),
@@ -189,29 +200,28 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
 
   Widget _infoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 110, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15))),
-          const Text(":  ", style: TextStyle(fontSize: 15)),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 15))),
+          SizedBox(width: 100, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: Colors.black54))),
+          const Text(":  ", style: TextStyle(fontSize: 14, color: Colors.black54)),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14, color: Colors.black87))),
         ],
       ),
     );
   }
 
-  Widget _buildFrsTable(String title, List<FrsItem> frsList, Color headerColor, {bool showActions = false}) {
+  Widget _buildFrsTable(String title, List<FrsItem> frsList, Color headerColor) {
+    // Kolom Aksi akan selalu ada sekarang untuk semua tabel
     List<DataColumn> columns = [
       const DataColumn(label: Text('No.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
       const DataColumn(label: Text('Kode MK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
       const DataColumn(label: Text('Mata Kuliah', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
       const DataColumn(label: Text('SKS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), numeric: true),
       const DataColumn(label: Text('Dosen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+      const DataColumn(label: Text('Aksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))), // Selalu ada kolom Aksi
     ];
-    if (showActions || title != "Pending") {
-        columns.add(DataColumn(label: Text(showActions ? 'Aksi' : 'Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))));
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -245,9 +255,11 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
                     int index = entry.key;
                     FrsItem frs = entry.value;
                     bool isCurrentlyProcessing = _isUpdatingStatus && _currentlyProcessingFrsId == frs.idFrs;
+                    String currentStatus = frs.status.toLowerCase();
+
                     return DataRow(
                       color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
-                        if (index.isEven) return Colors.grey.shade100;
+                        if (index.isEven) return Colors.grey.shade50;
                         return null;
                       }),
                       cells: [
@@ -256,47 +268,33 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
                         DataCell(SizedBox(width: 180, child: Text(frs.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
                         DataCell(Center(child: Text(frs.jadwalKuliah?.masterMatakuliah?.sks.toString() ?? '0'))),
                         DataCell(SizedBox(width: 150, child: Text(frs.jadwalKuliah?.dosen?.user.name ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
-                        if (showActions)
-                          DataCell(
-                            isCurrentlyProcessing
-                            ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2,)))
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Tooltip(
-                                    message: 'Setujui FRS',
-                                    child: IconButton(
-                                      icon: Icon(Icons.check_circle_outline, color: approvedColor),
-                                      onPressed: () => _handleUpdateFrsStatus(frs, 'disetujui'),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Tooltip(
-                                    message: 'Tolak FRS',
-                                    child: IconButton(
-                                      icon: Icon(Icons.highlight_off, color: rejectedColor),
-                                      onPressed: () => _handleUpdateFrsStatus(frs, 'ditolak'),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          )
-                        else if (title != "Pending")
-                           DataCell(
-                            Center(
-                              child: Text(
-                                frs.status.toUpperCase(), 
-                                style: TextStyle(
-                                  color: frs.status.toLowerCase() == 'disetujui' ? approvedColor : rejectedColor, 
-                                  fontWeight: FontWeight.bold
-                                )
-                              ),
-                            )
-                          ),
+                        DataCell(
+                          isCurrentlyProcessing
+                          ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2,)))
+                          : PopupMenuButton<String>(
+                              icon: Icon(Icons.edit_note, color: Colors.blueGrey.shade700, size: 26),
+                              tooltip: "Ubah Status FRS",
+                              onSelected: (String actionTargetStatus) {
+                                _handleUpdateFrsStatus(frs, actionTargetStatus);
+                              },
+                              itemBuilder: (BuildContext context) {
+                                List<PopupMenuEntry<String>> items = [];
+                                if (currentStatus != 'disetujui') {
+                                  items.add(const PopupMenuItem<String>(value: 'disetujui', child: Text('Setujui')));
+                                }
+                                if (currentStatus != 'ditolak') {
+                                   items.add(const PopupMenuItem<String>(value: 'ditolak', child: Text('Tolak')));
+                                }
+                                if (currentStatus != 'pending') {
+                                  items.add(const PopupMenuItem<String>(value: 'pending', child: Text('Kembalikan ke Pending')));
+                                }
+                                if (items.isEmpty) { // Jika semua status sama dengan status saat ini (seharusnya tidak terjadi jika ada 3 opsi)
+                                   items.add(const PopupMenuItem<String>(enabled: false, child: Text('Tidak ada aksi')));
+                                }
+                                return items;
+                              },
+                            ),
+                        ),
                       ]);
                   }).toList(),
                 ),
@@ -315,6 +313,13 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
         title: Text('Detail FRS: ${widget.mahasiswa.nama}', overflow: TextOverflow.ellipsis),
         backgroundColor: primaryBlue,
         foregroundColor: Colors.white,
+         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _isLoading ? null : _fetchInitialFrsData,
+            tooltip: 'Refresh Data FRS',
+          )
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _fetchInitialFrsData,
@@ -343,22 +348,13 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
                           ]),
                     ),
                   )
-                : ListView(
+                : ListView( // Menggunakan ListView agar bisa scroll jika konten banyak
                     padding: const EdgeInsets.only(bottom: 20),
                     children: [
                       _buildInfoMahasiswa(),
-                      // Hapus catatan jika backend sudah mendukung pengambilan semua status FRS
-                      // const Padding(
-                      //   padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      //   child: Text(
-                      //     "Catatan: Tabel 'Disetujui' dan 'Ditolak' hanya akan menampilkan FRS yang statusnya diubah pada sesi ini. Untuk riwayat lengkap, diperlukan pembaruan dari sisi server.",
-                      //     style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.blueGrey),
-                      //     textAlign: TextAlign.center,
-                      //   ),
-                      // ),
-                      _buildFrsTable('Pending', _pendingFrsForThisStudent, pendingColor, showActions: true),
-                      _buildFrsTable('Disetujui', _approvedFrsForThisStudent, approvedColor),
-                      _buildFrsTable('Ditolak', _rejectedFrsForThisStudent, rejectedColor),
+                      _buildFrsTable('Pending', _pendingFrsForThisStudent, pendingColor), // Selalu showActions untuk Pending
+                      _buildFrsTable('Disetujui', _approvedFrsForThisStudent, approvedColor), // Akan menampilkan aksi berdasarkan logika baru
+                      _buildFrsTable('Ditolak', _rejectedFrsForThisStudent, rejectedColor),     // Akan menampilkan aksi berdasarkan logika baru
                     ],
                   ),
       ),
