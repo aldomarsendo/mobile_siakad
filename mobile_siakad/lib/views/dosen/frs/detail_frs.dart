@@ -257,7 +257,7 @@ Widget _buildFrsTable(String title, List<FrsItem> frsList, Color headerColor) {
                         DataCell(Text(frs.jadwalKuliah?.masterMatakuliah?.kodeMk ?? 'N/A')),
                         DataCell(SizedBox(width: 180, child: Text(frs.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
                         DataCell(Center(child: Text(frs.jadwalKuliah?.masterMatakuliah?.sks.toString() ?? '0'))),
-                        DataCell(SizedBox(width: 150, child: Text(frs.jadwalKuliah?.dosen?.user.name ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
+                        DataCell(SizedBox(width: 150, child: Text(frs.jadwalKuliah?.dosen?.user?.name ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 2))),
                         DataCell(
                           isCurrentlyProcessing
                           ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2,)))

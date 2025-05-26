@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Ditambahkan untuk format tanggal
+import 'package:mobile_siakad/views/mahasiswa/frs/mahasiswa_frs_page.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_jadwal.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_nilai.dart';
-import 'package:mobile_siakad/views/mahasiswa/mahasiswa_frs.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
@@ -11,11 +11,7 @@ import 'package:mobile_siakad/models/mahasiswa_model.dart';
 import 'package:mobile_siakad/views/auth/login.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:http/http.dart' as http;
-// Import model MataKuliah jika struktur datanya sama atau mirip dengan jadwal dosen
-// Jika berbeda, Anda mungkin memerlukan model khusus untuk jadwal mahasiswa.
 import 'package:mobile_siakad/models/matakuliah_model.dart';
-// Jika ada service khusus untuk jadwal mahasiswa, import di sini
-// import 'package:mobile_siakad/services/mahasiswa/mahasiswa_jadwal_service.dart';
 
 class MahasiswaDashboardPage extends StatefulWidget {
   const MahasiswaDashboardPage({super.key});
@@ -31,13 +27,12 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
 
   User? _currentUser;
   Mahasiswa? _mahasiswaProfile;
-  List<MataKuliah> _jadwalHariIni = []; // Diasumsikan menggunakan MataKuliah model
+  List<MataKuliah> _jadwalHariIni = [];
   bool _isLoading = true;
   String? _errorMessage;
 
   late final AuthService _authService;
   late final MahasiswaProfileService _profileService;
-  // late final MahasiswaJadwalService _jadwalService; // Jika ada service jadwal mahasiswa
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -48,7 +43,6 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     final apiClient = ApiClient(http.Client());
     _authService = AuthService(apiClient);
     _profileService = MahasiswaProfileService(apiClient);
-    // _jadwalService = MahasiswaJadwalService(_authService, apiClient); // Inisialisasi jika ada
 
     _loadInitialData();
 
@@ -81,21 +75,14 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     try {
       final userFuture = _authService.getCurrentUser();
       final mahasiswaProfileFuture = _profileService.getProfile();
-      // final semuaMataKuliahFuture = _jadwalService.getJadwalMahasiswa(); // Panggil service jadwal mahasiswa
-
-      // Untuk saat ini, karena service jadwal mahasiswa tidak ada, kita set _jadwalHariIni jadi kosong
-      // Ganti bagian ini jika service sudah ada
       final results = await Future.wait([
         userFuture,
         mahasiswaProfileFuture,
-        // semuaMataKuliahFuture,
       ]);
 
       final User? user = results[0] as User?;
       final Mahasiswa? mahasiswa = results[1] as Mahasiswa?;
-      // final List<MataKuliah> semuaMataKuliah = results[2] as List<MataKuliah>;
 
-      // Simulasi, karena belum ada service jadwal mahasiswa
       final List<MataKuliah> semuaMataKuliah = []; 
       
       final String hariIniString = DateFormat('EEEE', 'id_ID').format(DateTime.now());

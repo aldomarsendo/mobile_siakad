@@ -1,4 +1,18 @@
-// --- Helper Classes (FrsUser, FrsDosen sudah baik) ---
+// lib/models/frs_model.dart
+
+String? _parseStringSafe(dynamic value) {
+  if (value == null) return null;
+  return value.toString();
+}
+
+int _parseIntSafe(dynamic value, {int defaultValue = 0}) {
+  if (value == null) return defaultValue;
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value) ?? defaultValue;
+  if (value is double) return value.toInt();
+  return defaultValue;
+}
+
 class FrsUser {
   final int id;
   final String name;
@@ -11,10 +25,11 @@ class FrsUser {
   });
 
   factory FrsUser.fromJson(Map<String, dynamic> json) {
+    // print("  Parsing FrsUser from JSON: $json");
     return FrsUser(
-      id: json['id'] as int? ?? 0,
-      name: json['name'] as String? ?? 'N/A',
-      email: json['email'] as String?,
+      id: _parseIntSafe(json['id']),
+      name: _parseStringSafe(json['name']) ?? 'N/A',
+      email: _parseStringSafe(json['email']),
     );
   }
 
@@ -23,55 +38,66 @@ class FrsUser {
         'name': name,
         'email': email,
       };
+  @override
+  String toString() {
+    return 'FrsUser(id: $id, name: $name, email: $email)';
+  }
 }
 
 class FrsDosen {
   final int idDosen;
   final String nidn;
-  final FrsUser user;
+  final FrsUser? user;
 
   FrsDosen({
     required this.idDosen,
     required this.nidn,
-    required this.user,
+    this.user,
   });
 
   factory FrsDosen.fromJson(Map<String, dynamic> json) {
     return FrsDosen(
-      idDosen: json['id_dosen'] as int? ?? 0,
-      nidn: json['nidn'] as String? ?? 'N/A',
-      user: FrsUser.fromJson(json['user'] as Map<String, dynamic>? ?? {}),
+      idDosen: _parseIntSafe(json['id_dosen']),
+      nidn: _parseStringSafe(json['nidn']) ?? 'N/A',
+      user: json['user'] != null && json['user'] is Map<String, dynamic>
+          ? FrsUser.fromJson(json['user'] as Map<String, dynamic>)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id_dosen': idDosen,
         'nidn': nidn,
-        'user': user.toJson(),
+        'user': user?.toJson(),
       };
+  @override
+  String toString() {
+    return 'FrsDosen(idDosen: $idDosen, nidn: $nidn, userName: ${user?.name})';
+  }
 }
 
-// --- FrsMasterMatakuliah (Menggantikan FrsMatakuliah untuk kejelasan) ---
-// Model ini khusus untuk data dari 'master_matakuliah'
 class FrsMasterMatakuliah {
   final int idMasterMk;
   final String kodeMk;
   final String namaMk;
   final int sks;
+  final String? semesterDefault;
 
   FrsMasterMatakuliah({
     required this.idMasterMk,
     required this.kodeMk,
     required this.namaMk,
     required this.sks,
+    this.semesterDefault,
   });
 
   factory FrsMasterMatakuliah.fromJson(Map<String, dynamic> json) {
     return FrsMasterMatakuliah(
-      idMasterMk: json['id_master_mk'] as int? ?? json['id_mk'] as int? ?? 0, // Sesuaikan dengan key ID dari master_matakuliah
-      kodeMk: json['kode_mk'] as String? ?? 'N/A',
-      namaMk: json['nama_mk'] as String? ?? 'N/A',
-      sks: json['sks_total'] as int? ?? json['sks'] as int? ?? 0, // API Laravel Anda mungkin mengembalikan sks_total
+      idMasterMk: _parseIntSafe(json['id_master_mk'] ?? json['id_mk']),
+      kodeMk: _parseStringSafe(json['kode_mk']) ?? 'N/A',
+      namaMk: _parseStringSafe(json['nama_mk']) ?? 'N/A',
+      sks: _parseIntSafe(json['sks_total'] ?? json['sks']),
+      semesterDefault: _parseStringSafe(json['semester_default']),
     );
   }
 
@@ -80,37 +106,52 @@ class FrsMasterMatakuliah {
         'kode_mk': kodeMk,
         'nama_mk': namaMk,
         'sks': sks,
+        'semester_default': semesterDefault,
       };
+  @override
+  String toString() {
+    return 'FrsMasterMatakuliah(kode: $kodeMk, nama: $namaMk, sks: $sks, semesterDefault: $semesterDefault)';
+  }
 }
 
-// --- FrsJadwalKuliah (Model untuk objek 'jadwal_kuliah') ---
 class FrsJadwalKuliah {
-  final int idJadwal; // atau id_mk jika itu ID dari tabel jadwal_kuliah
+  final int idJadwal;
   final FrsMasterMatakuliah? masterMatakuliah;
-  final FrsDosen? dosen; // Dosen pengampu untuk jadwal ini
-  // Tambahkan field lain dari jadwal_kuliah jika perlu (hari, jam, ruang, dll.)
-  // final String? hari;
-  // final String? jamMulai;
+  final FrsDosen? dosen;
+  final String? hari;
+  final String? jamMulai;
+  final String? jamSelesai;
+  final String? namaRuang;
+  final String? namaKelas;
+  final String? semesterPelaksanaan;
 
   FrsJadwalKuliah({
     required this.idJadwal,
     this.masterMatakuliah,
     this.dosen,
-    // this.hari,
-    // this.jamMulai,
+    this.hari,
+    this.jamMulai,
+    this.jamSelesai,
+    this.namaRuang,
+    this.namaKelas,
+    this.semesterPelaksanaan,
   });
 
   factory FrsJadwalKuliah.fromJson(Map<String, dynamic> json) {
     return FrsJadwalKuliah(
-      idJadwal: json['id_mk'] as int? ?? 0, // Asumsi 'id_mk' adalah ID dari jadwal_kuliah
-      masterMatakuliah: json['master_matakuliah'] != null
+      idJadwal: _parseIntSafe(json['id_mk']),
+      masterMatakuliah: json['master_matakuliah'] != null && json['master_matakuliah'] is Map<String, dynamic>
           ? FrsMasterMatakuliah.fromJson(json['master_matakuliah'] as Map<String, dynamic>)
           : null,
-      dosen: json['dosen'] != null
+      dosen: json['dosen'] != null && json['dosen'] is Map<String, dynamic>
           ? FrsDosen.fromJson(json['dosen'] as Map<String, dynamic>)
           : null,
-      // hari: json['hari'] as String?,
-      // jamMulai: json['jam_mulai'] as String?,
+      hari: _parseStringSafe(json['hari']),
+      jamMulai: _parseStringSafe(json['jam_mulai']),
+      jamSelesai: _parseStringSafe(json['jam_selesai']),
+      namaRuang: _parseStringSafe((json['ruang'] as Map<String, dynamic>?)?['nama_ruang'] ?? json['ruang']),
+      namaKelas: _parseStringSafe((json['kelas'] as Map<String, dynamic>?)?['nama_kelas'] ?? json['kelas']),
+      semesterPelaksanaan: _parseStringSafe(json['semester']), // API Anda mengirim 'semester'
     );
   }
 
@@ -118,49 +159,91 @@ class FrsJadwalKuliah {
         'id_mk': idJadwal,
         'master_matakuliah': masterMatakuliah?.toJson(),
         'dosen': dosen?.toJson(),
-        // 'hari': hari,
-        // 'jam_mulai': jamMulai,
+        'hari': hari,
+        'jam_mulai': jamMulai,
+        'jam_selesai': jamSelesai,
+        'ruang': namaRuang,
+        'kelas': namaKelas,
+        'semester': semesterPelaksanaan,
       };
+  @override
+  String toString() {
+    return 'FrsJadwalKuliah(id: $idJadwal, mk: ${masterMatakuliah?.namaMk}, semester: $semesterPelaksanaan)';
+  }
 }
 
-
-// --- FrsMahasiswa (Sudah baik) ---
 class FrsMahasiswa {
   final int idMahasiswa;
   final String nrp;
-  final FrsUser user;
+  final FrsUser? user; // Dibuat nullable
 
   FrsMahasiswa({
     required this.idMahasiswa,
     required this.nrp,
-    required this.user,
+    this.user,
   });
 
   factory FrsMahasiswa.fromJson(Map<String, dynamic> json) {
+    // print("  Parsing FrsMahasiswa from JSON: $json");
     return FrsMahasiswa(
-      idMahasiswa: json['id_mahasiswa'] as int? ?? 0,
-      nrp: json['nrp'] as String? ?? json['user']?['nim'] as String? ?? 'N/A', // Tambah fallback jika nrp tidak ada
-      user: FrsUser.fromJson(json['user'] as Map<String, dynamic>? ?? {}),
+      idMahasiswa: _parseIntSafe(json['id_mahasiswa']),
+      nrp: _parseStringSafe(json['nrp'] ?? (json['user'] as Map<String, dynamic>?)?['nim']) ?? 'N/A',
+      user: json['user'] != null && json['user'] is Map<String, dynamic>
+          ? FrsUser.fromJson(json['user'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+  Map<String, dynamic> toJson() => {
+        'id_mahasiswa': idMahasiswa,
+        'nrp': nrp,
+        'user': user?.toJson(),
+      };
+  @override
+  String toString() {
+    return 'FrsMahasiswa(id: $idMahasiswa, nrp: $nrp, userName: ${user?.name})';
+  }
+}
+
+// Model untuk objek tahun_ajaran yang mungkin nested di FRS
+class FrsTahunAjaran {
+  final int id;
+  final String namaTahunAjaran;
+  final String? semester; // e.g., "Ganjil", "Genap"
+
+  FrsTahunAjaran({
+    required this.id,
+    required this.namaTahunAjaran,
+    this.semester,
+  });
+
+  factory FrsTahunAjaran.fromJson(Map<String, dynamic> json) {
+    return FrsTahunAjaran(
+      id: _parseIntSafe(json['id']),
+      namaTahunAjaran: _parseStringSafe(json['nama_tahun_ajaran']) ?? 'N/A',
+      semester: _parseStringSafe(json['semester']),
     );
   }
    Map<String, dynamic> toJson() => {
-        'id_mahasiswa': idMahasiswa,
-        'nrp': nrp,
-        'user': user.toJson(),
+        'id': id,
+        'nama_tahun_ajaran': namaTahunAjaran,
+        'semester': semester,
       };
+  @override
+  String toString() {
+    return 'FrsTahunAjaran(id: $id, nama: $namaTahunAjaran, semester: $semester)';
+  }
 }
 
-// --- FrsItem (Model Utama) ---
 class FrsItem {
   final int idFrs;
-  final String status; // Ini adalah status FRS ('pending', 'disetujui', 'ditolak')
-  final FrsMahasiswa? mahasiswa;
-  final FrsJadwalKuliah? jadwalKuliah; // Objek jadwal kuliah yang terkait
+  final String status;
+  final FrsMahasiswa? mahasiswa;      // Untuk data dari API Dosen (getPendingFRS, getAllFrsForMahasiswa)
+  final FrsJadwalKuliah? jadwalKuliah; // Akan diisi dari data nested (Dosen) atau dibangun dari data flat (Mahasiswa)
   final String? createdAt;
   final String? updatedAt;
-  // Foreign keys mungkin tidak perlu jika objek relasi sudah ada
-  // final int idMahasiswaFk;
-  // final int idMatakuliahFk; // Ini lebih merujuk ke id_jadwal_kuliah
+  final String? tahunAjaranFrs;
+  final String? nilaiAkhir;
+  final String? statusPenilaian;
 
   FrsItem({
     required this.idFrs,
@@ -169,35 +252,87 @@ class FrsItem {
     this.jadwalKuliah,
     this.createdAt,
     this.updatedAt,
-    // required this.idMahasiswaFk,
-    // required this.idMatakuliahFk,
+    this.tahunAjaranFrs,
+    this.nilaiAkhir,
+    this.statusPenilaian,
   });
 
   factory FrsItem.fromJson(Map<String, dynamic> json) {
-    return FrsItem(
-      idFrs: json['id_frs'] as int? ?? 0,
-      status: json['status'] as String? ?? 'pending', // Dari tabel FRS
-      mahasiswa: json['mahasiswa'] != null
-          ? FrsMahasiswa.fromJson(json['mahasiswa'] as Map<String, dynamic>)
-          : null,
-      jadwalKuliah: json['jadwal_kuliah'] != null
-          ? FrsJadwalKuliah.fromJson(json['jadwal_kuliah'] as Map<String, dynamic>)
-          : null,
-      createdAt: json['created_at'] as String?,
-      updatedAt: json['updated_at'] as String?,
-      // idMahasiswaFk: json['id_mahasiswa'] as int? ?? 0,
-      // idMatakuliahFk: json['id_jadwal_kuliah'] as int? ?? json['id_mk_jadwal'] as int? ?? 0,
-    );
-  }
+    // print("--- Parsing FrsItem from JSON START ---");
+    // print("Raw JSON for FrsItem: $json");
 
-  Map<String, dynamic> toJson() => {
-        'id_frs': idFrs,
-        'status': status,
-        'mahasiswa': mahasiswa?.toJson(),
-        'jadwal_kuliah': jadwalKuliah?.toJson(),
-        'created_at': createdAt,
-        'updated_at': updatedAt,
-        // 'id_mahasiswa': idMahasiswaFk,
-        // 'id_jadwal_kuliah': idMatakuliahFk,
-      };
+    FrsMahasiswa? parsedMahasiswa;
+    if (json['mahasiswa'] != null && json['mahasiswa'] is Map<String, dynamic>) {
+      parsedMahasiswa = FrsMahasiswa.fromJson(json['mahasiswa'] as Map<String, dynamic>);
+    }
+
+    FrsJadwalKuliah? parsedJadwalKuliah;
+    FrsTahunAjaran? parsedTahunAjaranObjek; // Untuk objek TA jika ada di root json (dari API Dosen)
+    String? parsedTahunAjaranFrsString;   // Untuk string TA_frs (dari API Mahasiswa atau Dosen)
+
+
+    // Cek apakah ini struktur nested dari API Dosen (memiliki objek 'jadwal_kuliah')
+    if (json['jadwal_kuliah'] != null && json['jadwal_kuliah'] is Map<String, dynamic>) {
+      parsedJadwalKuliah = FrsJadwalKuliah.fromJson(json['jadwal_kuliah'] as Map<String, dynamic>);
+      // Untuk API Dosen, tahun_ajaran bisa jadi objek nested juga
+      if (json['tahun_ajaran'] != null && json['tahun_ajaran'] is Map<String, dynamic>) {
+        parsedTahunAjaranObjek = FrsTahunAjaran.fromJson(json['tahun_ajaran'] as Map<String, dynamic>);
+        parsedTahunAjaranFrsString = parsedTahunAjaranObjek.namaTahunAjaran;
+      } else {
+        // Jika API Dosen tidak mengirim objek tahun_ajaran di root, fallback ke field tahun_ajaran_frs jika ada
+         parsedTahunAjaranFrsString = _parseStringSafe(json['tahun_ajaran_frs']);
+      }
+    } 
+    // Jika bukan struktur nested, coba parsing sebagai struktur flat dari API Mahasiswa (getMyFRS)
+    else if (json.containsKey('id_mk_jadwal')) { 
+      FrsMasterMatakuliah? masterMatakuliahData = FrsMasterMatakuliah(
+        idMasterMk: _parseIntSafe(json['id_mk_jadwal']), // ID dari jadwal, bukan master_mk sebenarnya
+        kodeMk: _parseStringSafe(json['kode_mk']) ?? 'N/A',
+        namaMk: _parseStringSafe(json['nama_mk']) ?? 'N/A',
+        sks: _parseIntSafe(json['sks']),
+        // semesterDefault tidak ada di JSON flat ini
+      );
+
+      FrsDosen? dosenData;
+      if (_parseStringSafe(json['dosen_pengampu']) != null) {
+        dosenData = FrsDosen(
+          idDosen: 0, nidn: 'N/A', // Tidak ada ID/NIDN dosen di JSON flat ini
+          user: FrsUser(id: 0, name: _parseStringSafe(json['dosen_pengampu'])!)
+        );
+      }
+      
+      parsedJadwalKuliah = FrsJadwalKuliah(
+        idJadwal: _parseIntSafe(json['id_mk_jadwal']),
+        masterMatakuliah: masterMatakuliahData,
+        dosen: dosenData,
+        hari: _parseStringSafe(json['hari']),
+        jamMulai: _parseStringSafe(json['jam_mulai']),
+        jamSelesai: _parseStringSafe(json['jam_selesai']),
+        namaRuang: _parseStringSafe(json['ruang']),
+        semesterPelaksanaan: _parseStringSafe(json['semester_pelaksanaan']),
+      );
+      parsedTahunAjaranFrsString = _parseStringSafe(json['tahun_ajaran_frs']);
+    }
+
+    final item = FrsItem(
+      idFrs: _parseIntSafe(json['id_frs']),
+      status: _parseStringSafe(json['status_frs'] ?? json['status']) ?? 'pending',
+      mahasiswa: parsedMahasiswa, // Ini akan terisi jika API Dosen mengirimnya
+      jadwalKuliah: parsedJadwalKuliah,
+      createdAt: _parseStringSafe(json['created_at']),
+      updatedAt: _parseStringSafe(json['updated_at']),
+      tahunAjaranFrs: parsedTahunAjaranFrsString, // Menggunakan string yang sudah diparsing
+      nilaiAkhir: _parseStringSafe((json['nilai'] as Map<String, dynamic>?)?['nilai_huruf'] ?? json['nilai_akhir']),
+      statusPenilaian: _parseStringSafe((json['nilai'] as Map<String, dynamic>?)?['status_penilaian'] ?? json['status_penilaian']),
+    );
+    // print("Final FrsItem parsed: ${item.toString()}");
+    // print("--- Parsing FrsItem from JSON END ---");
+    return item;
+  }
+  // ... toJson dan toString (tambahkan tahunAjaranObjek jika perlu) ...
+  Map<String, dynamic> toJson() => { /* ... */ };
+  @override
+  String toString() {
+    return 'FrsItem(id: $idFrs, status: $status, MK: ${jadwalKuliah?.masterMatakuliah?.namaMk})';
+  }
 }
