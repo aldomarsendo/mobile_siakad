@@ -55,7 +55,6 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
           _errorMessage = "Gagal memuat data FRS: ${e.toString().replaceFirst('Exception: ', '')}";
         });
       }
-      print("Error fetching FRS data for student ${widget.mahasiswa.idMahasiswa}: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -78,18 +77,15 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
         .where((frs) => frs.status.toLowerCase() == 'ditolak')
         .toList();
     
-    // Mengurutkan berdasarkan nama mata kuliah
-    Comparator<FrsItem> frsSorter = (a, b) => 
-        (a.jadwalKuliah?.masterMatakuliah?.namaMk ?? '').compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '');
-
-    _pendingFrsForThisStudent.sort(frsSorter);
-    _approvedFrsForThisStudent.sort(frsSorter);
-    _rejectedFrsForThisStudent.sort(frsSorter);
+    _pendingFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
+    _approvedFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
+    _rejectedFrsForThisStudent.sort((a, b) => a.jadwalKuliah?.masterMatakuliah?.namaMk.compareTo(b.jadwalKuliah?.masterMatakuliah?.namaMk ?? '') ?? 0);
 
     setState(() {});
   }
 
   Future<void> _handleUpdateFrsStatus(FrsItem frsItemToUpdate, String newStatus) async {
+
     if (!mounted || _isUpdatingStatus) return;
     
     String actionText = '';
@@ -105,7 +101,7 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
       actionText = 'Kembalikan ke Pending';
       confirmMessage = 'Anda yakin ingin mengembalikan status FRS untuk mata kuliah "${frsItemToUpdate.jadwalKuliah?.masterMatakuliah?.namaMk ?? 'ini'}" menjadi Pending?';
     } else {
-      return; // Status tidak dikenal
+      return; 
     }
 
     bool confirm = await showDialog(
@@ -136,20 +132,17 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
     });
 
     try {
-      // Menggunakan method updateFrsStatus dari service (tanpa catatanWali)
       final FrsItem updatedFrsFromServer = await _dosenFrsService.updateFrsStatus(frsItemToUpdate.idFrs, newStatus);
       
       if (mounted) {
-        // Update list lokal dengan data dari server
         int index = _allFrsForThisStudentFromBackend.indexWhere((item) => item.idFrs == updatedFrsFromServer.idFrs);
         if (index != -1) {
           _allFrsForThisStudentFromBackend[index] = updatedFrsFromServer;
         } else {
-          // Jika tidak ditemukan (seharusnya tidak terjadi jika update berhasil), tambahkan saja
-           _allFrsForThisStudentFromBackend.removeWhere((item) => item.idFrs == updatedFrsFromServer.idFrs); // Hapus dulu jika ada duplikat ID (jarang)
+          _allFrsForThisStudentFromBackend.removeWhere((item) => item.idFrs == updatedFrsFromServer.idFrs); 
           _allFrsForThisStudentFromBackend.add(updatedFrsFromServer);
         }
-        _categorizeFrsForThisStudent(); // Kategorikan ulang dan update UI
+        _categorizeFrsForThisStudent(); 
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar( 
@@ -165,7 +158,6 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
           SnackBar(content: Text('Gagal memperbarui status FRS: $e'), backgroundColor: Colors.red),
         );
       }
-      print("Error updating FRS status for frsId ${frsItemToUpdate.idFrs}: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -212,21 +204,20 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
     );
   }
 
-  Widget _buildFrsTable(String title, List<FrsItem> frsList, Color headerColor) {
-    // Kolom Aksi akan selalu ada sekarang untuk semua tabel
-    List<DataColumn> columns = [
-      const DataColumn(label: Text('No.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('Kode MK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('Mata Kuliah', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('SKS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), numeric: true),
-      const DataColumn(label: Text('Dosen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-      const DataColumn(label: Text('Aksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))), // Selalu ada kolom Aksi
-    ];
+Widget _buildFrsTable(String title, List<FrsItem> frsList, Color headerColor) {
+  List<DataColumn> columns = [
+    const DataColumn(label: Text('No.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+    const DataColumn(label: Text('Kode MK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+    const DataColumn(label: Text('Mata Kuliah', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+    const DataColumn(label: Text('SKS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), numeric: true),
+    const DataColumn(label: Text('Dosen', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+    const DataColumn(label: Text('Aksi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))), 
+  ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
           padding: const EdgeInsets.only(top: 20.0, bottom: 8.0, left: 16.0, right: 16.0),
           child: Text(title, style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: headerColor)),
         ),
@@ -248,17 +239,16 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
                   headingRowHeight: 48,
                   dataRowMinHeight: 52,
                   dataRowMaxHeight: 72,
-                  headingRowColor: MaterialStateColor.resolveWith((states) => headerColor),
+                  headingRowColor: WidgetStateColor.resolveWith((states) => headerColor),
                   border: TableBorder.all(color: Colors.grey.shade300, width: 1, borderRadius: BorderRadius.circular(8)),
                   columns: columns,
                   rows: frsList.asMap().entries.map((entry) {
                     int index = entry.key;
                     FrsItem frs = entry.value;
                     bool isCurrentlyProcessing = _isUpdatingStatus && _currentlyProcessingFrsId == frs.idFrs;
-                    String currentStatus = frs.status.toLowerCase();
 
                     return DataRow(
-                      color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+                      color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
                         if (index.isEven) return Colors.grey.shade50;
                         return null;
                       }),
@@ -275,21 +265,23 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
                               icon: Icon(Icons.edit_note, color: Colors.blueGrey.shade700, size: 26),
                               tooltip: "Ubah Status FRS",
                               onSelected: (String actionTargetStatus) {
+                                print('PopupMenuButton onSelected: actionTargetStatus = "$actionTargetStatus"'); 
                                 _handleUpdateFrsStatus(frs, actionTargetStatus);
                               },
                               itemBuilder: (BuildContext context) {
                                 List<PopupMenuEntry<String>> items = [];
+                                String currentStatus = frs.status.toLowerCase();
                                 if (currentStatus != 'disetujui') {
                                   items.add(const PopupMenuItem<String>(value: 'disetujui', child: Text('Setujui')));
                                 }
                                 if (currentStatus != 'ditolak') {
-                                   items.add(const PopupMenuItem<String>(value: 'ditolak', child: Text('Tolak')));
+                                  items.add(const PopupMenuItem<String>(value: 'ditolak', child: Text('Tolak')));
                                 }
                                 if (currentStatus != 'pending') {
                                   items.add(const PopupMenuItem<String>(value: 'pending', child: Text('Kembalikan ke Pending')));
                                 }
-                                if (items.isEmpty) { // Jika semua status sama dengan status saat ini (seharusnya tidak terjadi jika ada 3 opsi)
-                                   items.add(const PopupMenuItem<String>(enabled: false, child: Text('Tidak ada aksi')));
+                                if (items.isEmpty) {
+                                  items.add(const PopupMenuItem<String>(enabled: false, child: Text('Tidak ada aksi')));
                                 }
                                 return items;
                               },
@@ -303,8 +295,7 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
           ),
       ],
     );
-  }
-  
+  } 
 
   @override
   Widget build(BuildContext context) {
@@ -348,13 +339,13 @@ class _DetailFrsPageState extends State<DetailFrsPage> {
                           ]),
                     ),
                   )
-                : ListView( // Menggunakan ListView agar bisa scroll jika konten banyak
+                : ListView( 
                     padding: const EdgeInsets.only(bottom: 20),
                     children: [
                       _buildInfoMahasiswa(),
-                      _buildFrsTable('Pending', _pendingFrsForThisStudent, pendingColor), // Selalu showActions untuk Pending
-                      _buildFrsTable('Disetujui', _approvedFrsForThisStudent, approvedColor), // Akan menampilkan aksi berdasarkan logika baru
-                      _buildFrsTable('Ditolak', _rejectedFrsForThisStudent, rejectedColor),     // Akan menampilkan aksi berdasarkan logika baru
+                      _buildFrsTable('Pending', _pendingFrsForThisStudent, pendingColor), 
+                      _buildFrsTable('Disetujui', _approvedFrsForThisStudent, approvedColor), 
+                      _buildFrsTable('Ditolak', _rejectedFrsForThisStudent, rejectedColor),     
                     ],
                   ),
       ),
