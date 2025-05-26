@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:mobile_siakad/models/mahasiswa_nilai.dart';
+import 'package:mobile_siakad/services/api_client.dart';
+import 'package:mobile_siakad/services/mahasiswa/mahasiswa_nilai_service.dart'; 
 
 class MahasiswaNilaiPage extends StatefulWidget {
   const MahasiswaNilaiPage({Key? key}) : super(key: key);
@@ -9,60 +13,43 @@ class MahasiswaNilaiPage extends StatefulWidget {
 
 class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
     with SingleTickerProviderStateMixin {
-  // Data Mata Kuliah (Contoh Statis)
-  final List<Map<String, dynamic>> mataKuliah = [
-    {'kode': '3030', 'nama': 'Kecerdasan Buatan', 'nilai': 'A', 'sks': 3},
-    {'kode': '3031', 'nama': 'Workshop Desain Pengalaman Pengguna', 'nilai': 'A', 'sks': 4},
-    {'kode': '3032', 'nama': 'Workshop Pemrogramman Perangkat Bergerak', 'nilai': 'A', 'sks': 4},
-    {'kode': '3033', 'nama': 'Workshop Administrasi Jaringan', 'nilai': 'AB', 'sks': 3},
-    {'kode': '3034', 'nama': 'Pengembangan Aplikasi Web Lanjut', 'nilai': 'B', 'sks': 3},
-    {'kode': '3035', 'nama': 'Manajemen Proyek TI', 'nilai': 'C', 'sks': 2},
+  late final ApiClient _apiClient;
+  late final MahasiswaNilaiService _nilaiService;
 
-  ];
+  GetMahasiswaNilaiResponse? _nilaiDataResponse;
+  List<MahasiswaNilaiItem> _filteredNilaiItems = []; 
+  
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  String _selectedSemester = 'Genap 2024/2025'; // Semester default
+  // String _selectedSemester = 'Genap 2024/2025'; // Akan diisi dari data API atau default jika API tidak menyediakan
+  String? _selectedSemesterView; // Format "Genap 2024/2025"
+  List<String> _semesterOptions = []; // Akan diisi dari data API
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  final List<String> semesters = [
-    'Genap 2024/2025',
-    'Ganjil 2024/2025',
-    'Genap 2023/2024',
-    'Ganjil 2023/2024',
-  ];
-
-  // Palet Warna Utama (Konsisten dengan halaman lain)
   final Color primaryBlue = const Color(0xFF133B7A);
   final Color secondaryBlue = const Color(0xFF1E5BB0);
-
-  // Warna Tambahan dari tema
   final Color textOnLightBg = Colors.black87;
   final Color subtleTextOnLightBg = Colors.grey.shade700;
-  late final Color iconColorOnLightBg;
-  late final Color dividerColor; // Mungkin tidak terpakai di halaman ini tapi didefinisikan untuk konsistensi
   late final Color cardShadowColor;
 
   @override
   void initState() {
     super.initState();
+    _apiClient = ApiClient(http.Client());
+    _nilaiService = MahasiswaNilaiService(_apiClient);
 
-    // Inisialisasi warna tambahan
-    iconColorOnLightBg = primaryBlue.withOpacity(0.75);
-    dividerColor = primaryBlue.withOpacity(0.2);
     cardShadowColor = primaryBlue.withOpacity(0.08);
-
-    // Konfigurasi Animasi (Konsisten dengan halaman lain)
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 500), // Disesuaikan
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOut, // Disesuaikan
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
-    _animationController.forward();
+    _fetchNilaiData();
   }
 
   @override
@@ -71,57 +58,142 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
     super.dispose();
   }
 
-  // Kalkulasi IPK
-  double calculateGPA() {
-    double totalPoints = 0;
-    int totalSKS = 0;
+  Future<void> _fetchNilaiData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    for (var mk in mataKuliah) {
-      double point = 0;
-      switch (mk['nilai']) {
-        case 'A': point = 4.0; break;
-        case 'AB': point = 3.5; break;
-        case 'B': point = 3.0; break;
-        case 'BC': point = 2.5; break;
-        case 'C': point = 2.0; break;
-        case 'D': point = 1.0; break;
-        case 'E': point = 0.0; break;
+    try {
+      final data = await _nilaiService.getNilaiMahasiswa();
+      if (mounted) {
+        setState(() {
+          _nilaiDataResponse = data;
+          _populateSemesterOptions();
+          _filterNilaiBySelectedSemester(); // Filter awal
+          _isLoading = false;
+        });
+        _animationController.forward(from:0.0);
       }
-      totalPoints += point * (mk['sks'] as int);
-      totalSKS += mk['sks'] as int;
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceFirst("Exception: ", "");
+        });
+      }
     }
-
-    return totalSKS > 0 ? totalPoints / totalSKS : 0;
   }
 
-  // Warna berdasarkan Nilai Huruf (dipertahankan karena makna semantik)
-  Color _getNilaiColor(String nilai) {
-    switch (nilai) {
-      case 'A': return Colors.green.shade600; // Sedikit penyesuaian shade
-      case 'AB': return Colors.green.shade400;
-      case 'B': return Colors.blue.shade600;  // Sedikit penyesuaian shade
-      case 'BC': return Colors.blue.shade400;
-      case 'C': return Colors.orange.shade600; // Sedikit penyesuaian shade
-      case 'D': return Colors.deepOrange.shade600; // Sedikit penyesuaian shade
-      case 'E': return Colors.red.shade600; // Sedikit penyesuaian shade
+  void _populateSemesterOptions() {
+    if (_nilaiDataResponse == null || _nilaiDataResponse!.semuaNilai.isEmpty) {
+      _semesterOptions = ['Tidak ada data semester'];
+      _selectedSemesterView = _semesterOptions.first;
+      return;
+    }
+
+    // Membuat daftar semester unik dari data nilai
+    final Set<String> uniqueSemesters = {};
+    for (var item in _nilaiDataResponse!.semuaNilai) {
+      if (item.semesterMkDiambil != null && item.tahunAjaranFrs != null) {
+        // Asumsi semesterMkDiambil adalah "Ganjil"/"Genap" atau angka
+        // dan tahunAjaranFrs adalah "TAHUN/TAHUN"
+        String semesterKey = "${item.semesterMkDiambil} ${item.tahunAjaranFrs}";
+        uniqueSemesters.add(semesterKey);
+      }
+    }
+    
+    _semesterOptions = uniqueSemesters.toList();
+    // Sortir semester (opsional, mungkin perlu logika sortir yang lebih kompleks)
+    _semesterOptions.sort((a, b) {
+        // Sorting sederhana berdasarkan tahun ajaran dulu, lalu semester (Ganjil sebelum Genap)
+        final partsA = a.split(' ');
+        final partsB = b.split(' ');
+        final taA = partsA.length > 1 ? partsA.sublist(1).join(' ') : '';
+        final taB = partsB.length > 1 ? partsB.sublist(1).join(' ') : '';
+        final semA = partsA.isNotEmpty ? partsA[0] : '';
+        final semB = partsB.isNotEmpty ? partsB[0] : '';
+
+        int taCompare = taB.compareTo(taA); // Tahun terbaru dulu
+        if (taCompare != 0) return taCompare;
+        // Ganjil (1) sebelum Genap (0) jika diurutkan descending, atau sebaliknya
+        return (semB.toLowerCase() == 'ganjil' ? 1 : 0).compareTo(semA.toLowerCase() == 'ganjil' ? 1 : 0);
+    });
+
+
+    if (_semesterOptions.isNotEmpty) {
+      // Pilih semester terbaru sebagai default jika belum ada yang terpilih
+      _selectedSemesterView = _selectedSemesterView ?? _semesterOptions.first;
+    } else {
+      _semesterOptions = ['Tidak ada data semester'];
+      _selectedSemesterView = _semesterOptions.first;
+    }
+  }
+
+  void _filterNilaiBySelectedSemester() {
+    if (_nilaiDataResponse == null || _selectedSemesterView == null || _selectedSemesterView == 'Tidak ada data semester') {
+      _filteredNilaiItems = [];
+      return;
+    }
+
+    final parts = _selectedSemesterView!.split(' ');
+    if (parts.length < 2) {
+      _filteredNilaiItems = [];
+      return;
+    }
+    final targetSemester = parts[0]; // "Ganjil" atau "Genap"
+    final targetTahunAjaran = parts.sublist(1).join(' '); // "TAHUN/TAHUN"
+
+    _filteredNilaiItems = _nilaiDataResponse!.semuaNilai.where((item) {
+      return item.semesterMkDiambil?.toLowerCase() == targetSemester.toLowerCase() &&
+             item.tahunAjaranFrs == targetTahunAjaran;
+    }).toList();
+  }
+
+
+  Map<String, dynamic> _calculateGPAForSelectedSemester() {
+    double totalPoints = 0;
+    int totalSKS = 0;
+    final Map<String, double> bobotNilai = {
+      'A': 4.0, 'A-': 3.75, 'B+': 3.25, 'B': 3.0, 'B-': 2.75, 
+      'C+': 2.25, 'C': 2.0, 'D': 1.0, 'E': 0.0
+    };
+
+    for (var item in _filteredNilaiItems) {
+      if (item.nilaiHuruf != null && item.sks > 0 && bobotNilai.containsKey(item.nilaiHuruf!.toUpperCase())) {
+        totalPoints += bobotNilai[item.nilaiHuruf!.toUpperCase()]! * item.sks;
+        totalSKS += item.sks;
+      }
+    }
+    return {
+      'gpa': totalSKS > 0 ? totalPoints / totalSKS : 0.0,
+      'totalSks': totalSKS,
+    };
+  }
+
+  Color _getNilaiColor(String? nilai) {
+    if (nilai == null) return Colors.grey.shade500;
+    switch (nilai.toUpperCase()) {
+      case 'A': return Colors.green.shade600;
+      case 'A-': return Colors.green.shade500;
+      case 'B+': return Colors.blue.shade700;
+      case 'B': return Colors.blue.shade600;
+      case 'B-': return Colors.blue.shade500;
+      case 'C+': return Colors.orange.shade700;
+      case 'C': return Colors.orange.shade600;
+      case 'D': return Colors.deepOrange.shade600;
+      case 'E': return Colors.red.shade600;
       default: return Colors.grey.shade500;
     }
   }
 
-  Future<void> _refreshNilai() async {
-    // Implementasi logika refresh data jika diperlukan (misalnya dari API)
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() {
-        // Proses ulang data jika ada perubahan atau hanya untuk memicu rebuild
-      });
-    }
-  }
-
-
   @override
   Widget build(BuildContext context) {
-    final double gpa = calculateGPA();
+    Map<String, dynamic> gpaData = {'gpa': 0.0, 'totalSks': 0};
+    if (!_isLoading && _nilaiDataResponse != null) {
+        gpaData = _calculateGPAForSelectedSemester();
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -130,30 +202,37 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        backgroundColor: primaryBlue, // Latar belakang solid
-        elevation: 1.0, // Elevasi AppBar
+        backgroundColor: primaryBlue,
+        elevation: 1.0,
         title: const Text(
           'Nilai Akademik',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: Colors.white),
+            onPressed: _isLoading ? null : _fetchNilaiData,
+            tooltip: 'Refresh Data',
+          )
+        ],
       ),
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
-          child: RefreshIndicator( // Ditambahkan untuk konsistensi
-            onRefresh: _refreshNilai,
+          child: RefreshIndicator(
+            onRefresh: _fetchNilaiData,
             color: primaryBlue,
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildGPACard(gpa),
+                  _buildGPACard(gpaData['gpa'], gpaData['totalSks']),
                   const SizedBox(height: 24),
                   _buildSemesterSelector(),
                   const SizedBox(height: 24),
-                  _buildSectionHeader('Daftar Nilai Mata Kuliah', Icons.school_outlined), // Icon disesuaikan
+                  _buildSectionHeader('Daftar Nilai Mata Kuliah', Icons.list_alt_rounded),
                   const SizedBox(height: 16),
                   Expanded(
                     child: _buildCoursesList(),
@@ -167,7 +246,7 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
     );
   }
 
-  Widget _buildGPACard(double gpa) {
+  Widget _buildGPACard(double gpa, int totalSks) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -175,21 +254,21 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [primaryBlue, secondaryBlue],
+          colors: [primaryBlue, secondaryBlue.withOpacity(0.8)],
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [ // Bayangan konsisten
+        boxShadow: [
           BoxShadow(
-            color: primaryBlue.withOpacity(0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: primaryBlue.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         children: [
           Text(
-            'IP Semester',
+            'IP Semester (${_selectedSemesterView ?? 'Pilih Semester'})',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 16,
@@ -206,7 +285,7 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
           ),
           const SizedBox(height: 8),
           Text(
-            'Total SKS: ${mataKuliah.fold<int>(0, (sum, mk) => sum + (mk['sks'] as int))}',
+            'Total SKS Dinilai: $totalSks',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 14,
@@ -220,12 +299,12 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, color: primaryBlue, size: 22), // Ukuran ikon disesuaikan
-        const SizedBox(width: 10), // Jarak disesuaikan
+        Icon(icon, color: primaryBlue, size: 22),
+        const SizedBox(width: 10),
         Text(
           title,
           style: TextStyle(
-            fontSize: 18, // Ukuran font disesuaikan
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: primaryBlue,
           ),
@@ -238,15 +317,15 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Pilih Semester', Icons.calendar_today_outlined), // Icon disesuaikan
+        _buildSectionHeader('Pilih Periode Nilai', Icons.calendar_today_outlined),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300), // Border subtle
-            boxShadow: [ // Bayangan konsisten
+            border: Border.all(color: Colors.grey.shade300),
+            boxShadow: [
               BoxShadow(
                 color: cardShadowColor,
                 blurRadius: 5,
@@ -257,23 +336,24 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
-              value: _selectedSemester,
+              value: _selectedSemesterView,
+              hint: Text("Pilih Semester"),
               icon: Icon(Icons.keyboard_arrow_down, color: primaryBlue),
-              style: TextStyle( // Style teks dropdown utama
-                color: textOnLightBg, // Disesuaikan
+              style: TextStyle(
+                color: textOnLightBg,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
-              items: semesters
+              items: _semesterOptions
                   .map((e) => DropdownMenuItem(
                       value: e,
-                      child: Text(e, style: TextStyle(color: textOnLightBg)))) // Style teks item
+                      child: Text(e, style: TextStyle(color: textOnLightBg))))
                   .toList(),
-              onChanged: (value) {
+              onChanged: _isLoading ? null : (value) { // Nonaktifkan saat loading
                 if (value != null) {
                   setState(() {
-                    _selectedSemester = value;
-                    // Implementasi filter nilai berdasarkan semester jika diperlukan
+                    _selectedSemesterView = value;
+                    _filterNilaiBySelectedSemester(); // Filter data saat semester berubah
                   });
                 }
               },
@@ -285,14 +365,41 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
   }
 
   Widget _buildCoursesList() {
-    if (mataKuliah.isEmpty) { // Penanganan jika data mata kuliah kosong
-        return Center(
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorMessage != null) {
+      return Center(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.search_off_rounded, size: 80, color: Colors.grey.shade400),
+              Icon(Icons.error_outline_rounded, color: Colors.red.shade700, size: 60),
+              const SizedBox(height: 16),
+              Text("Oops!", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+              const SizedBox(height: 8),
+              Text(_errorMessage!, textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.refresh),
+                label: const Text("Coba Lagi"),
+                onPressed: _fetchNilaiData,
+                style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
+              )
+            ],
+          ),
+        )
+      );
+    }
+    if (_filteredNilaiItems.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off_rounded, size: 70, color: Colors.grey.shade400),
               const SizedBox(height: 16),
               Text(
                 "Belum Ada Nilai",
@@ -300,7 +407,9 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
               ),
               const SizedBox(height: 8),
               Text(
-                "Nilai untuk semester ini belum tersedia.",
+                _selectedSemesterView == 'Tidak ada data semester' 
+                ? "Data nilai tidak tersedia."
+                : "Nilai untuk semester ${_selectedSemesterView ?? ''} belum tersedia.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               ),
@@ -312,90 +421,98 @@ class _MahasiswaNilaiPageState extends State<MahasiswaNilaiPage>
 
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
-      itemCount: mataKuliah.length,
+      itemCount: _filteredNilaiItems.length,
       itemBuilder: (context, index) {
-        final mk = mataKuliah[index];
+        final item = _filteredNilaiItems[index];
         return Container(
-          margin: const EdgeInsets.only(bottom: 16.0), // Margin disesuaikan
+          margin: const EdgeInsets.only(bottom: 16.0),
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [ // Bayangan konsisten
+            boxShadow: [
               BoxShadow(
                 color: cardShadowColor,
-                blurRadius: 8, // Disesuaikan agar lebih subtle
+                blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Material( // Untuk InkWell effect
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell( // Efek ripple saat disentuh
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Detail mata kuliah: ${mk['nama']}")),
-                );
-              },
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center, // Ditengah secara vertikal
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          mk['nama'],
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: textOnLightBg, // Disesuaikan
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6), // Jarak ditambah sedikit
-                        Text(
-                          'Kode: ${mk['kode']} • ${mk['sks']} SKS',
-                          style: TextStyle(
-                            fontSize: 13.5, // Ukuran font disesuaikan
-                            color: subtleTextOnLightBg, // Disesuaikan
-                          ),
-                        ),
-                      ],
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.namaMk,
+                      style: TextStyle(
+                        fontSize: 15, // Sedikit lebih kecil
+                        fontWeight: FontWeight.bold,
+                        color: textOnLightBg,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(width: 16), // Jarak antara info MK dan nilai
-                  Container(
-                    width: 48, // Lebar dan tinggi disesuaikan
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: _getNilaiColor(mk['nilai']),
-                      shape: BoxShape.circle,
-                      boxShadow: [ // Bayangan halus untuk bubble nilai
+                    const SizedBox(height: 6),
+                    Text(
+                      'Kode: ${item.kodeMk} • ${item.sks} SKS',
+                      style: TextStyle(
+                        fontSize: 13, // Sedikit lebih kecil
+                        color: subtleTextOnLightBg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              if (item.statusPenilaian?.toLowerCase() == 'sudah_dinilai' && item.nilaiHuruf != null)
+                Container(
+                  width: 44, 
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _getNilaiColor(item.nilaiHuruf),
+                    shape: BoxShape.circle,
+                    boxShadow: [
                          BoxShadow(
-                           color: _getNilaiColor(mk['nilai']).withOpacity(0.3),
-                           blurRadius: 6,
-                           offset: const Offset(0,2),
-                         )
+                          color: _getNilaiColor(item.nilaiHuruf).withOpacity(0.3),
+                          blurRadius: 5,
+                          offset: const Offset(0,2),
+                        )
                       ]
-                    ),
-                    child: Center(
-                      child: Text(
-                        mk['nilai'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18, // Ukuran font bisa disesuaikan
-                          fontWeight: FontWeight.bold,
-                        ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      item.nilaiHuruf!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17, 
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
+                )
+              else
+                Container( // Placeholder jika belum dinilai
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '-',
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },

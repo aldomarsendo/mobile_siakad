@@ -134,7 +134,6 @@ class _ListKelasMatakuliahPageState extends State<ListKelasMatakuliahPage> with 
       child: InkWell(
         borderRadius: BorderRadius.circular(10.0),
         onTap: () {
-          print('Pilih kelas: ${kelas.namaKelas} (ID: ${kelas.idKelas}) untuk Mata Kuliah: ${widget.selectedCourse.namaMk}');
           Navigator.push(
             context,
             MaterialPageRoute(
