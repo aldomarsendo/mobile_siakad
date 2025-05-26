@@ -1,256 +1,147 @@
-// lib/models/nilai_model.dart
-import 'package:flutter/foundation.dart'; // Untuk @immutable, listEquals
-import 'package:flutter/material.dart';  // Untuk TextEditingController
-import 'package:mobile_siakad/models/frs_model.dart'; 
-// Import User dari mahasiswa_model.dart jika MahasiswaNilaiEntry akan memiliki detail User
-// import 'package:mobile_siakad/models/mahasiswa_model.dart'; 
+import 'package:mobile_siakad/models/frs_model.dart';
 
-/// Helper function to safely parse a value that might be a num or a String representation of a num.
-int? _parseIntSafely(dynamic value) {
-  if (value == null) return null;
-  if (value is int) return value;
-  if (value is double) return value.toInt();
-  if (value is String) {
-    // Coba parse sebagai int dulu
-    int? intVal = int.tryParse(value);
-    if (intVal != null) return intVal;
-    // Jika gagal, coba parse sebagai double lalu toInt
-    double? doubleVal = double.tryParse(value);
-    if (doubleVal != null) return doubleVal.toInt();
+class NilaiJadwalKuliahDetail {
+  final int idMk;
+  final String? hari;
+  final String? jamMulai;
+  final String? jamSelesai;
+  final String? semester;
+  final FrsMasterMatakuliah? masterMatakuliah;
+  final FrsDosen? dosen;
+  final String? namaRuang;
+  final String? namaKelas;
+
+  NilaiJadwalKuliahDetail({
+    required this.idMk,
+    this.hari,
+    this.jamMulai,
+    this.jamSelesai,
+    this.semester,
+    this.masterMatakuliah,
+    this.dosen,
+    this.namaRuang,
+    this.namaKelas,
+  });
+
+  factory NilaiJadwalKuliahDetail.fromJson(Map<String, dynamic> json) {
+    return NilaiJadwalKuliahDetail(
+      idMk: json['id_mk'] as int? ?? 0,
+      hari: json['hari'] as String?,
+      jamMulai: json['jam_mulai'] as String?,
+      jamSelesai: json['jam_selesai'] as String?,
+      semester: json['semester'] as String?,
+      masterMatakuliah: json['master_matakuliah'] != null
+          ? FrsMasterMatakuliah.fromJson(json['master_matakuliah'] as Map<String, dynamic>)
+          : null,
+      dosen: json['dosen'] != null
+          ? FrsDosen.fromJson(json['dosen'] as Map<String, dynamic>)
+          : null,
+      namaRuang: (json['ruang'] as Map<String, dynamic>?)?['nama_ruang'] as String?,
+      namaKelas: (json['kelas'] as Map<String, dynamic>?)?['nama_kelas'] as String?,
+    );
   }
-  return null; // Tidak bisa diparsing
 }
 
-@immutable
-class Nilai {
-  final int idNilai;
+class MahasiswaUntukNilai {
   final int idFrs;
-  final int nilaiAngka;
+  final int idMahasiswa;
+  final String nrp;
+  final String namaMahasiswa;
+  final int? idNilai;
+  num? nilaiAngka; 
+  String? nilaiHuruf;
+  String statusPenilaian;
+
+  MahasiswaUntukNilai({
+    required this.idFrs,
+    required this.idMahasiswa,
+    required this.nrp,
+    required this.namaMahasiswa,
+    this.idNilai,
+    this.nilaiAngka,
+    this.nilaiHuruf,
+    required this.statusPenilaian,
+  });
+
+  factory MahasiswaUntukNilai.fromJson(Map<String, dynamic> json) {
+    num? parsedNilaiAngka;
+    if (json['nilai_angka'] != null) {
+      if (json['nilai_angka'] is String) {
+        parsedNilaiAngka = num.tryParse(json['nilai_angka'] as String);
+      } else if (json['nilai_angka'] is num) {
+        parsedNilaiAngka = json['nilai_angka'] as num;
+      }
+    }
+
+    return MahasiswaUntukNilai(
+      idFrs: json['id_frs'] as int? ?? 0,
+      idMahasiswa: json['id_mahasiswa'] as int? ?? 0,
+      nrp: json['nrp'] as String? ?? 'N/A',
+      namaMahasiswa: json['nama_mahasiswa'] as String? ?? 'N/A',
+      idNilai: json['id_nilai'] as int?,
+      nilaiAngka: parsedNilaiAngka, // <-- PERBAIKAN DI SINI
+      nilaiHuruf: json['nilai_huruf'] as String?,
+      statusPenilaian: json['status_penilaian'] as String? ?? 'belum_dinilai',
+    );
+  }
+}
+
+class GetMahasiswaNilaiResponse {
+  final NilaiJadwalKuliahDetail? matakuliahDetail;
+  final List<MahasiswaUntukNilai> mahasiswaList;
+  final String message;
+
+  GetMahasiswaNilaiResponse({
+    this.matakuliahDetail,
+    required this.mahasiswaList,
+    required this.message,
+  });
+
+  factory GetMahasiswaNilaiResponse.fromJson(Map<String, dynamic> json) {
+    var list = json['mahasiswa_list'] as List? ?? [];
+    List<MahasiswaUntukNilai> mahasiswaItems = list.map((i) => MahasiswaUntukNilai.fromJson(i as Map<String, dynamic>)).toList();
+
+    return GetMahasiswaNilaiResponse(
+      matakuliahDetail: json['matakuliah_detail'] != null
+          ? NilaiJadwalKuliahDetail.fromJson(json['matakuliah_detail'] as Map<String, dynamic>)
+          : null,
+      mahasiswaList: mahasiswaItems,
+      message: json['message'] as String? ?? '',
+    );
+  }
+}
+
+class SubmittedNilaiItem {
+  final int? idNilai;
+  final int idFrs;
+  final num nilaiAngka;
   final String nilaiHuruf;
   final String statusPenilaian;
-  final String? createdAt;
-  final String? updatedAt;
-  final FrsItem? frs; 
 
-  const Nilai({
-    required this.idNilai,
+  SubmittedNilaiItem({
+    this.idNilai,
     required this.idFrs,
     required this.nilaiAngka,
     required this.nilaiHuruf,
     required this.statusPenilaian,
-    this.createdAt,
-    this.updatedAt,
-    this.frs,
   });
 
-  factory Nilai.fromJson(Map<String, dynamic> json) {
-    final nilaiData = json['nilai'] is Map<String, dynamic> 
-                      ? json['nilai'] as Map<String, dynamic> 
-                      : json; 
-
-    return Nilai(
-      idNilai: nilaiData['id_nilai'] as int? ?? 0,
-      idFrs: nilaiData['id_frs'] as int? ?? 0,
-      nilaiAngka: _parseIntSafely(nilaiData['nilai_angka']) ?? 0, // Menggunakan helper
-      nilaiHuruf: nilaiData['nilai_huruf'] as String? ?? '',
-      statusPenilaian: nilaiData['status_penilaian'] as String? ?? 'belum_dinilai',
-      createdAt: nilaiData['created_at'] as String?,
-      updatedAt: nilaiData['updated_at'] as String?,
-      frs: nilaiData['frs'] != null 
-           ? FrsItem.fromJson(nilaiData['frs'] as Map<String, dynamic>) 
-           : null,
+  factory SubmittedNilaiItem.fromJson(Map<String, dynamic> json) {
+    num parsedNilaiAngka = 0; // Default value
+    if (json['nilai_angka'] != null) {
+      if (json['nilai_angka'] is String) {
+        parsedNilaiAngka = num.tryParse(json['nilai_angka'] as String) ?? 0;
+      } else if (json['nilai_angka'] is num) {
+        parsedNilaiAngka = json['nilai_angka'] as num;
+      }
+    }
+    
+    return SubmittedNilaiItem(
+      idNilai: json['id_nilai'] as int?,
+      idFrs: json['id_frs'] as int? ?? (json['frs'] as Map<String, dynamic>?)?['id_frs'] as int? ?? 0,
+      nilaiAngka: parsedNilaiAngka, 
+      nilaiHuruf: json['nilai_huruf'] as String? ?? 'E',
+      statusPenilaian: json['status_penilaian'] as String? ?? 'belum_dinilai',
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id_nilai': idNilai,
-      'id_frs': idFrs,
-      'nilai_angka': nilaiAngka,
-      'nilai_huruf': nilaiHuruf,
-      'status_penilaian': statusPenilaian,
-      'created_at': createdAt,
-      'updated_at': updatedAt,
-      'frs': frs?.toJson(),
-    };
-  }
-
-  Nilai copyWith({
-    int? idNilai,
-    int? idFrs,
-    int? nilaiAngka,
-    String? nilaiHuruf,
-    String? statusPenilaian,
-    ValueGetter<String?>? createdAt,
-    ValueGetter<String?>? updatedAt,
-    ValueGetter<FrsItem?>? frs,
-  }) {
-    return Nilai(
-      idNilai: idNilai ?? this.idNilai,
-      idFrs: idFrs ?? this.idFrs,
-      nilaiAngka: nilaiAngka ?? this.nilaiAngka,
-      nilaiHuruf: nilaiHuruf ?? this.nilaiHuruf,
-      statusPenilaian: statusPenilaian ?? this.statusPenilaian,
-      createdAt: createdAt != null ? createdAt() : this.createdAt,
-      updatedAt: updatedAt != null ? updatedAt() : this.updatedAt,
-      frs: frs != null ? frs() : this.frs,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'Nilai(idNilai: $idNilai, idFrs: $idFrs, nilaiAngka: $nilaiAngka, nilaiHuruf: $nilaiHuruf, statusPenilaian: $statusPenilaian, createdAt: $createdAt, updatedAt: $updatedAt, frs: $frs)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-  
-    return other is Nilai &&
-      other.idNilai == idNilai &&
-      other.idFrs == idFrs &&
-      other.nilaiAngka == nilaiAngka &&
-      other.nilaiHuruf == nilaiHuruf &&
-      other.statusPenilaian == statusPenilaian &&
-      other.createdAt == createdAt &&
-      other.updatedAt == updatedAt &&
-      other.frs == frs;
-  }
-
-  @override
-  int get hashCode {
-    return idNilai.hashCode ^
-      idFrs.hashCode ^
-      nilaiAngka.hashCode ^
-      nilaiHuruf.hashCode ^
-      statusPenilaian.hashCode ^
-      createdAt.hashCode ^
-      updatedAt.hashCode ^
-      frs.hashCode;
   }
 }
-
-@immutable
-class MahasiswaNilaiEntry {
-  final int idMahasiswa;
-  final String nrp;
-  final String nama;
-  final String prodi; 
-  
-  final int idFrs; 
-
-  final int? nilaiAngkaAwal;
-  final String? nilaiHurufAwal;
-  final String statusPenilaianAwal;
-  final int? idNilaiAwal;
-
-  // Anotasi @JsonKey dihapus karena tidak menggunakan json_serializable
-  final TextEditingController nilaiAngkaController;
-  final String? nilaiHurufDisplay; 
-  final bool isSaving;
-
-  MahasiswaNilaiEntry({
-    required this.idMahasiswa,
-    required this.nrp,
-    required this.nama,
-    required this.prodi,
-    required this.idFrs,
-    this.nilaiAngkaAwal,
-    this.nilaiHurufAwal,
-    required this.statusPenilaianAwal,
-    this.idNilaiAwal,
-    TextEditingController? nilaiAngkaController,
-    this.nilaiHurufDisplay,
-    this.isSaving = false,
-  }) : nilaiAngkaController = nilaiAngkaController ?? TextEditingController(text: nilaiAngkaAwal?.toString() ?? '');
-
-  factory MahasiswaNilaiEntry.fromJson(Map<String, dynamic> json) {
-    int? parsedNilaiAngka = _parseIntSafely(json['nilai_angka']); // Menggunakan helper
-    String? parsedNilaiHuruf = json['nilai_huruf'] as String?;
-
-    return MahasiswaNilaiEntry(
-      idMahasiswa: json['id_mahasiswa'] as int? ?? 0,
-      nrp: json['nrp'] as String? ?? 'N/A',
-      nama: json['nama'] as String? ?? 'N/A',
-      prodi: json['prodi'] as String? ?? '', 
-      
-      idFrs: json['id_frs'] as int? ?? 0, // Pastikan ini tidak 0 jika id_frs wajib ada
-
-      nilaiAngkaAwal: parsedNilaiAngka, 
-      nilaiHurufAwal: parsedNilaiHuruf,
-      statusPenilaianAwal: json['status_penilaian'] as String? ?? 'belum_dinilai',
-      idNilaiAwal: json['id_nilai'] as int?,
-      nilaiHurufDisplay: parsedNilaiHuruf,
-    );
-  }
-
-  MahasiswaNilaiEntry copyWith({
-    int? idMahasiswa,
-    String? nrp,
-    String? nama,
-    String? prodi,
-    int? idFrs,
-    ValueGetter<int?>? nilaiAngkaAwal,
-    ValueGetter<String?>? nilaiHurufAwal,
-    String? statusPenilaianAwal,
-    ValueGetter<int?>? idNilaiAwal,
-    String? nilaiHurufDisplay, 
-    bool? isSaving,
-  }) {
-    final newNilaiAngkaAwal = nilaiAngkaAwal != null ? nilaiAngkaAwal() : this.nilaiAngkaAwal;
-    return MahasiswaNilaiEntry(
-      idMahasiswa: idMahasiswa ?? this.idMahasiswa,
-      nrp: nrp ?? this.nrp,
-      nama: nama ?? this.nama,
-      prodi: prodi ?? this.prodi,
-      idFrs: idFrs ?? this.idFrs,
-      nilaiAngkaAwal: newNilaiAngkaAwal,
-      nilaiHurufAwal: nilaiHurufAwal != null ? nilaiHurufAwal() : this.nilaiHurufAwal,
-      statusPenilaianAwal: statusPenilaianAwal ?? this.statusPenilaianAwal,
-      idNilaiAwal: idNilaiAwal != null ? idNilaiAwal() : this.idNilaiAwal,
-      nilaiAngkaController: TextEditingController(text: newNilaiAngkaAwal?.toString() ?? this.nilaiAngkaController.text),
-      nilaiHurufDisplay: nilaiHurufDisplay ?? this.nilaiHurufDisplay,
-      isSaving: isSaving ?? this.isSaving,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'MahasiswaNilaiEntry(idMahasiswa: $idMahasiswa, nrp: $nrp, nama: $nama, idFrs: $idFrs, nilaiAngkaAwal: $nilaiAngkaAwal, nilaiHurufDisplay: $nilaiHurufDisplay, isSaving: $isSaving)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-  
-    return other is MahasiswaNilaiEntry &&
-      other.idMahasiswa == idMahasiswa &&
-      other.nrp == nrp &&
-      other.nama == nama &&
-      other.prodi == prodi &&
-      other.idFrs == idFrs &&
-      other.nilaiAngkaAwal == nilaiAngkaAwal &&
-      other.nilaiHurufAwal == nilaiHurufAwal &&
-      other.statusPenilaianAwal == statusPenilaianAwal &&
-      other.idNilaiAwal == idNilaiAwal &&
-      other.nilaiHurufDisplay == nilaiHurufDisplay &&
-      other.isSaving == isSaving;
-  }
-
-  @override
-  int get hashCode {
-    return idMahasiswa.hashCode ^
-      nrp.hashCode ^
-      nama.hashCode ^
-      prodi.hashCode ^
-      idFrs.hashCode ^
-      nilaiAngkaAwal.hashCode ^
-      nilaiHurufAwal.hashCode ^
-      statusPenilaianAwal.hashCode ^
-      idNilaiAwal.hashCode ^
-      nilaiHurufDisplay.hashCode ^
-      isSaving.hashCode;
-  }
-}
-
-// Definisi class JsonKey yang sebelumnya dikomentari telah dihapus sepenuhnya.

@@ -38,8 +38,8 @@ class _DetailKelasWaliPageState extends State<DetailKelasWaliPage> with SingleTi
 
     // Inisialisasi warna turunan
     // iconColorOnLightBg = primaryBlue.withOpacity(0.75);
-    dividerColor = primaryBlue.withOpacity(0.15); // Sedikit lebih soft untuk tabel
-    cardShadowColor = primaryBlue.withOpacity(0.07);
+    dividerColor = primaryBlue.withValues(alpha: 0.15); // Sedikit lebih soft untuk tabel
+    cardShadowColor = primaryBlue.withValues(alpha: 0.07);
 
 
     final apiClient = ApiClient(http.Client());
@@ -83,7 +83,7 @@ class _DetailKelasWaliPageState extends State<DetailKelasWaliPage> with SingleTi
             .where((m) => m.idKelas == widget.kelas.idKelas) // Asumsi idKelas non-nullable
             .toList();
         
-        filteredList.sort((a, b) => (a.nrp ?? "").compareTo(b.nrp ?? "")); // Handle NRP null jika mungkin
+        filteredList.sort((a, b) => a.nrp.compareTo(b.nrp)); // Handle NRP null jika mungkin
 
         setState(() {
           _mahasiswaList = filteredList;
@@ -191,7 +191,7 @@ class _DetailKelasWaliPageState extends State<DetailKelasWaliPage> with SingleTi
                 headingRowHeight: 48, // Standard height for header
                 dataRowMinHeight: 48, // Min height for data rows
                 dataRowMaxHeight: 56, // Max height, allows for some wrapping
-                headingRowColor: MaterialStateColor.resolveWith((states) => primaryBlue), // Solid blue header
+                headingRowColor: WidgetStateColor.resolveWith((states) => primaryBlue), // Solid blue header
                 columns: [
                   _createDataColumn('NRP'),
                   _createDataColumn('Nama Mahasiswa'),
@@ -199,22 +199,22 @@ class _DetailKelasWaliPageState extends State<DetailKelasWaliPage> with SingleTi
                 ],
                 rows: _mahasiswaList.map((mahasiswa) {
                   return DataRow(
-                    color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
-                      if (states.contains(MaterialState.selected)) { // if row is selected
-                        return primaryBlue.withOpacity(0.08);
+                    color: WidgetStateColor.resolveWith((Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) { // if row is selected
+                        return primaryBlue.withValues(alpha: 0.08);
                       }
-                      return null; // Use default value for other states and unselected rows.
+                      return primaryBlue.withValues(alpha: 0.08); // Use default value for other states and unselected rows.
                     }),
                     cells: [
-                    DataCell(Text(mahasiswa.nrp ?? '-', style: TextStyle(color: textOnLightBg, fontSize: 14))),
-                    DataCell(SizedBox(width: 200, child: Text(mahasiswa.nama ?? '-', style: TextStyle(color: textOnLightBg, fontSize: 14), overflow: TextOverflow.ellipsis, maxLines: 2,))), // Added width constraint and wrapping
+                    DataCell(Text(mahasiswa.nrp, style: TextStyle(color: textOnLightBg, fontSize: 14))),
+                    DataCell(SizedBox(width: 200, child: Text(mahasiswa.nama, style: TextStyle(color: textOnLightBg, fontSize: 14), overflow: TextOverflow.ellipsis, maxLines: 2,))), // Added width constraint and wrapping
                     DataCell(
                       Center( // Center the button in the cell
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.edit_note_outlined, size: 18), // Outlined icon
                           label: const Text('FRS'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryBlue.withOpacity(0.9), // Slightly lighter blue for button
+                            backgroundColor: primaryBlue.withValues(alpha: 0.9), // Slightly lighter blue for button
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                             textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
@@ -272,7 +272,7 @@ class _DetailKelasWaliPageState extends State<DetailKelasWaliPage> with SingleTi
               label: const Text("Coba Lagi", style: TextStyle(color: Colors.white, fontSize: 15)),
               onPressed: _fetchMahasiswaByKelas,
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryBlue,
+                backgroundColor: primaryBlue.withValues(alpha: 0.9),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
