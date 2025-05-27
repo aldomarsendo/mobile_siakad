@@ -10,8 +10,8 @@ class Mahasiswa {
   final String? email;
   final String createdAt;
   final String updatedAt;
-  final String kelas; // Ini adalah nama kelas, bukan objek Kelas
-  final String dosenWali; // Ini adalah nama dosen wali, bukan objek DosenWali
+  final String kelas; 
+  final String dosenWali; 
 
   Mahasiswa({
     required this.idMahasiswa,
@@ -38,12 +38,11 @@ class Mahasiswa {
       email: json['email']?.toString(),
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
-      kelas: json['kelas'] as String? ?? '', // Pastikan key 'kelas' sesuai JSON
-      dosenWali: json['dosen_wali'] as String? ?? '', // Pastikan key 'dosen_wali' sesuai JSON
+      kelas: json['kelas'] as String? ?? '', 
+      dosenWali: json['dosen_wali'] as String? ?? '', 
     );
   }
 
-  // Metode toJson untuk Mahasiswa (opsional untuk kasus ini, tapi baik untuk dimiliki)
   Map<String, dynamic> toJson() {
     return {
       'id_mahasiswa': idMahasiswa,
@@ -65,10 +64,10 @@ class Kelas {
   final int idKelas;
   final String namaKelas;
   final String status;
-  final int idDosenWali; // Foreign Key ke Dosen
+  final int idDosenWali; 
   final String createdAt;
   final String updatedAt;
-  final DosenWali? dosenWali; // Objek DosenWali untuk kelas ini
+  final DosenWali? dosenWali; 
 
   Kelas({
     required this.idKelas,
@@ -94,7 +93,6 @@ class Kelas {
     );
   }
 
-  // TAMBAHKAN METHOD toJson UNTUK KELAS
   Map<String, dynamic> toJson() {
     return {
       'id_kelas': idKelas,
@@ -103,7 +101,7 @@ class Kelas {
       'id_dosen_wali': idDosenWali,
       'created_at': createdAt,
       'updated_at': updatedAt,
-      'dosen_wali': dosenWali?.toJson(), // Panggil toJson pada objek dosenWali jika ada
+      'dosen_wali': dosenWali?.toJson(), 
     };
   }
 }
@@ -112,7 +110,6 @@ class DosenWali {
   final int idDosen;
   final int userId;
   final String nidn;
-  // final String name; // Jika ada nama dosen di sini, tambahkan
   final bool isDosenWali;
   final String createdAt;
   final String updatedAt;
@@ -121,7 +118,6 @@ class DosenWali {
     required this.idDosen,
     required this.userId,
     required this.nidn,
-    // required this.name,
     required this.isDosenWali,
     required this.createdAt,
     required this.updatedAt,
@@ -132,20 +128,17 @@ class DosenWali {
       idDosen: json['id_dosen'] as int? ?? 0,
       userId: json['user_id'] as int? ?? 0,
       nidn: json['nidn'] as String? ?? '',
-      // name: json['name'] as String? ?? '', // Jika ada nama
       isDosenWali: (json['is_dosen_wali'] == 1 || json['is_dosen_wali'] == true),
       createdAt: json['created_at'] as String? ?? '',
       updatedAt: json['updated_at'] as String? ?? '',
     );
   }
 
-  // TAMBAHKAN METHOD toJson UNTUK DOSENWALI
   Map<String, dynamic> toJson() {
     return {
       'id_dosen': idDosen,
       'user_id': userId,
       'nidn': nidn,
-      // 'name': name, // Jika ada nama
       'is_dosen_wali': isDosenWali,
       'created_at': createdAt,
       'updated_at': updatedAt,

@@ -24,8 +24,8 @@ class DosenProfileService {
   }
 
   Future<void> updateProfile({
-  String? name, // Ubah dari 'required String name' menjadi 'String? name'
-  String? email, // Jika ada, juga jadikan opsional jika sesuai
+  String? name, 
+  String? email, 
   String? password,
   String? passwordConfirmation,
 }) async {
@@ -33,22 +33,17 @@ class DosenProfileService {
     final body = <String, dynamic>{};
 
     if (name != null && name.isNotEmpty) {
-      body['nama'] = name; // 'nama' sesuai dengan key yang diharapkan backend Laravel Anda
+      body['nama'] = name; 
     }
-    // if (email != null && email.isNotEmpty) { // Jika email juga bisa diupdate
-    //   body['email'] = email;
-    // }
-
+    
     if (password != null && password.isNotEmpty) {
       body['password'] = password;
-      // Backend Laravel dengan validasi 'confirmed' mengharapkan 'password_confirmation'
+      
       body['password_confirmation'] = passwordConfirmation ?? ""; 
     }
 
     if (body.isEmpty) {
       print('Tidak ada data yang diupdate.');
-      // Anda bisa langsung return atau throw error jika tidak ada yang diupdate,
-      // tergantung kebutuhan. Tapi jika hanya password yang diupdate, body tidak akan kosong.
       return; 
     }
 

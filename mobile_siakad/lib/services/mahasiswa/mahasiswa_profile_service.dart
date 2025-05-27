@@ -1,4 +1,5 @@
-import '../../models/mahasiswa_model.dart';
+import 'package:mobile_siakad/models/mahasiswa_profile_model.dart';
+
 import '../api_client.dart'; 
 
 class MahasiswaProfileService {
@@ -6,41 +7,54 @@ class MahasiswaProfileService {
 
   MahasiswaProfileService(this._apiClient);
 
-  Future<Mahasiswa> getProfile() async {
+  
+  Future<MahasiswaProfile> getProfile() async {
     try {
-      final response = await _apiClient.get('mahasiswa/profile');
-      
-      if (response is Map<String, dynamic>) {
-        final mahasiswaData = response['profile'];
-        if (mahasiswaData != null) {
-          return Mahasiswa.fromJson(mahasiswaData);
-        }
+      const String endpoint = 'mahasiswa/profile'; 
+      final responseData = await _apiClient.get(endpoint);
+
+      if (responseData != null &&
+          responseData is Map<String, dynamic> &&
+          responseData['profile'] != null &&
+          responseData['profile'] is Map<String, dynamic>) {
+        return MahasiswaProfile.fromJson(responseData['profile'] as Map<String, dynamic>);
+      } else {
+        print('MahasiswaProfileService.getProfile: Respons API tidak valid atau key "profile" tidak ditemukan. Respons: $responseData');
+        throw Exception('Gagal memuat profil: Format respons tidak sesuai.');
       }
-      
-      throw Exception('No mahasiswa data found in API response');
     } catch (e) {
-      print('Error in MahasiswaProfileService.getProfile: $e');
-      throw Exception('Failed to load mahasiswa profile: $e');
+      print('Error di MahasiswaProfileService.getProfile: $e');
+      throw Exception('Gagal memuat profil: ${e.toString().replaceFirst("Exception: ", "")}');
     }
   }
 
-  Future<void> updateProfile({
-    required String nama,
-    required String email,
+  Future<String> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
   }) async {
     try {
-      final body = {
-        'nama': nama,
-        'email': email,
+      const String endpoint = 'mahasiswa/password'; 
+      final Map<String, dynamic> body = {
+        'current_password': currentPassword,
+        'password': newPassword,
+        'password_confirmation': newPasswordConfirmation,
       };
 
-      await _apiClient.post('mahasiswa/profile', body: body);
-      
-      print('Mahasiswa profile updated successfully.');
+      final responseData = await _apiClient.put(endpoint, body: body);
 
+      if (responseData != null && 
+          responseData is Map<String, dynamic> && 
+          responseData['message'] != null &&
+          responseData['message'] is String) {
+        return responseData['message'] as String;
+      } else {
+        print('MahasiswaProfileService.updatePassword: Respons API tidak valid. Respons: $responseData');
+        throw Exception('Gagal memperbarui password: Format respons tidak sesuai.');
+      }
     } catch (e) {
-      print('Error in MahasiswaProfileService.updateProfile: $e');
-      throw Exception('Failed to update mahasiswa profile: $e');
+      print('Error di MahasiswaProfileService.updatePassword: $e');
+      throw Exception('Gagal memperbarui password: ${e.toString().replaceFirst("Exception: ", "")}');
     }
   }
 }

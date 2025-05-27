@@ -4,10 +4,12 @@ import 'package:http/http.dart' as http;
 // Model yang Digunakan
 import 'package:mobile_siakad/models/frs_model.dart';
 import 'package:mobile_siakad/models/mahasiswa_frs_data_model.dart';
+import 'package:mobile_siakad/models/mahasiswa_profile_model.dart';
 
 // Service yang Digunakan
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:mobile_siakad/services/mahasiswa/mahasiswa_frs_service.dart';
+import 'package:mobile_siakad/services/mahasiswa/mahasiswa_profile_service.dart';
 
 // Komponen UI Kustom Anda (pastikan path ini benar)
 import 'package:mobile_siakad/views/mahasiswa/frs/frs_summary_card.dart';
@@ -27,6 +29,7 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
     with SingleTickerProviderStateMixin {
   late final ApiClient _apiClient;
   late final MahasiswaFrsService _frsService;
+  late final MahasiswaProfileService _profileService;
 
   List<FrsItem> _matakuliahDiambil = [];
   List<AvailableMatakuliahItem> _matakuliahTersedia = [];
@@ -36,7 +39,7 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
   bool _isSubmitting = false; // Untuk loading saat add/delete
   String? _errorMessage;
 
-  // Data mahasiswa & TA - Placeholder, idealnya dari API Profile & API Info TA Aktif
+  // Data mahasiswa & TA - Placeholder, idealnya dari API Profile 
   String _namaMahasiswa = "Nama Mahasiswa";
   String _nrpMahasiswa = "NRP Mahasiswa";
   String _ipkMahasiswa = "N/A";
@@ -63,6 +66,7 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
 
     _apiClient = ApiClient(http.Client());
     _frsService = MahasiswaFrsService(_apiClient);
+    _profileService = MahasiswaProfileService(_apiClient);
 
     iconColorOnLightBg = primaryBlue.withOpacity(0.75);
     dividerColor = primaryBlue.withOpacity(0.2);
@@ -77,8 +81,30 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
     );
 
     _loadInitialData();
-    // TODO: Panggil service untuk mengambil data profil mahasiswa dan update state _namaMahasiswa, _nrpMahasiswa, dll.
-    // _fetchMahasiswaProfile(); 
+    _fetchMahasiswaProfile(); 
+  }
+
+  Future<void> _fetchMahasiswaProfile() async {
+    try {
+      final MahasiswaProfile profileData = await _profileService.getProfile(); 
+      if (mounted) {
+        setState(() {
+          _namaMahasiswa = profileData.nama;
+          _nrpMahasiswa = profileData.nrp;
+          _ipkMahasiswa = profileData.ipkKumulatif;
+          _batasSks = profileData.batasSksSemesterIni;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        print("Error fetching mahasiswa profile: $e");
+        setState(() {
+          _namaMahasiswa = "Gagal memuat";
+          _nrpMahasiswa = "N/A";
+          _ipkMahasiswa = "N/A";
+        });
+      }
+    }
   }
 
   Future<void> _loadInitialData() async {

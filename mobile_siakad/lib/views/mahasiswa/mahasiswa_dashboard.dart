@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Ditambahkan untuk format tanggal
+import 'package:intl/intl.dart';
 import 'package:mobile_siakad/views/mahasiswa/frs/mahasiswa_frs_page.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_jadwal.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_nilai.dart';
@@ -7,7 +7,7 @@ import 'package:mobile_siakad/views/mahasiswa/mahasiswa_profil.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/models/user_model.dart';
 import 'package:mobile_siakad/services/mahasiswa/mahasiswa_profile_service.dart';
-import 'package:mobile_siakad/models/mahasiswa_model.dart';
+import 'package:mobile_siakad/models/mahasiswa_profile_model.dart';
 import 'package:mobile_siakad/views/auth/login.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:http/http.dart' as http;
@@ -26,7 +26,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
   final Color secondaryBlue = const Color(0xFF1E5BB0);
 
   User? _currentUser;
-  Mahasiswa? _mahasiswaProfile;
+  MahasiswaProfile? _mahasiswaProfile;
   List<MataKuliah> _jadwalHariIni = [];
   bool _isLoading = true;
   String? _errorMessage;
@@ -81,7 +81,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       ]);
 
       final User? user = results[0] as User?;
-      final Mahasiswa? mahasiswa = results[1] as Mahasiswa?;
+      final MahasiswaProfile? mahasiswaProfile = results[1] as MahasiswaProfile?; 
 
       final List<MataKuliah> semuaMataKuliah = []; 
       
@@ -94,7 +94,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       if (mounted) {
         setState(() {
           _currentUser = user;
-          _mahasiswaProfile = mahasiswa;
+          _mahasiswaProfile = mahasiswaProfile;
           _jadwalHariIni = filteredJadwal;
         });
       }

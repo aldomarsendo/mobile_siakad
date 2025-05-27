@@ -30,12 +30,11 @@ class AvailableMatakuliahItem {
   });
 
   factory AvailableMatakuliahItem.fromJson(Map<String, dynamic> json) {
-    // Helper untuk konversi aman ke String jika tipenya int
     String? _parseStringOrInt(dynamic value) {
       if (value == null) return null;
       if (value is String) return value;
       if (value is int || value is double || value is num) return value.toString();
-      return value.toString(); // Fallback, mungkin perlu penanganan lebih
+      return value.toString(); 
     }
 
     return AvailableMatakuliahItem(
@@ -43,9 +42,9 @@ class AvailableMatakuliahItem {
       kodeMk: json['kode_mk'] as String? ?? 'N/A',
       namaMk: json['nama_mk'] as String? ?? 'N/A',
       sks: json['sks'] as int? ?? 0,
-      semesterDefault: _parseStringOrInt(json['semester_default']),      // <-- PERBAIKAN
-      semesterPelaksanaan: _parseStringOrInt(json['semester_pelaksanaan']),// <-- PERBAIKAN
-      dosenPengampu: json['dosen_pengampu'] as String?, // Jika ini juga bisa angka, gunakan _parseStringOrInt
+      semesterDefault: _parseStringOrInt(json['semester_default']),      
+      semesterPelaksanaan: _parseStringOrInt(json['semester_pelaksanaan']),
+      dosenPengampu: json['dosen_pengampu'] as String?, 
       prodiMk: json['prodi_mk'] as String?,
       ruang: json['ruang'] as String?,
       hari: json['hari'] as String?,
@@ -55,7 +54,6 @@ class AvailableMatakuliahItem {
   }
 }
 
-// Model untuk membungkus respons dari getAvailableMatakuliah
 class GetAvailableMatakuliahResponse {
   final List<AvailableMatakuliahItem> matakuliah;
   final String message;
@@ -75,9 +73,8 @@ class GetAvailableMatakuliahResponse {
   }
 }
 
-// Model untuk membungkus respons dari getMyFRS
 class GetMyFrsResponse {
-  final List<FrsItem> frs; // Menggunakan FrsItem dari frs_model.dart
+  final List<FrsItem> frs; 
   final String message;
 
   GetMyFrsResponse({required this.frs, required this.message});
@@ -92,9 +89,8 @@ class GetMyFrsResponse {
   }
 }
 
-// Model untuk membungkus respons dari createFRS
 class CreateFrsResponse {
-  final FrsItem frsItem; // Menggunakan FrsItem dari frs_model.dart
+  final FrsItem frsItem; 
   final String message;
 
   CreateFrsResponse({required this.frsItem, required this.message});
