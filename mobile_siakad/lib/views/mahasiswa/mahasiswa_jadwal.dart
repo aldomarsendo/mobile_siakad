@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; 
+// Menggunakan model baru untuk jadwal mahasiswa
+import 'package:mobile_siakad/models/mahasiswa_jadwal_model.dart'; 
+import 'package:mobile_siakad/services/api_client.dart';
+import 'package:mobile_siakad/services/auth_service.dart'; 
+// Menggunakan service yang sudah dikoreksi
+import 'package:mobile_siakad/services/mahasiswa/mahasiswa_jadwal_service.dart'; 
 
 class MahasiswaJadwalPage extends StatefulWidget {
   const MahasiswaJadwalPage({Key? key}) : super(key: key);
@@ -12,55 +19,30 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  // Palet Warna Utama (Konsisten dengan DosenJadwalPage)
+  // Dependencies
+  late ApiClient _apiClient;
+  late AuthService _authService; 
+  late MahasiswaJadwalService _jadwalService;
+
+  // State untuk data jadwal menggunakan model baru
+  Map<String, List<MahasiswaJadwalItem>> _jadwalKuliahData = {};
+  bool _isLoading = true;
+  String? _errorMessage;
+  String _apiMessage = ''; 
+  String _currentSemesterDisplay = "Memuat..."; 
+
+  // Palet Warna Utama
   final Color primaryBlue = const Color(0xFF133B7A);
   final Color secondaryBlue = const Color(0xFF1E5BB0);
 
-  // Warna Tambahan dari DosenJadwalPage
+  // Warna Tambahan
   final Color textOnLightBg = Colors.black87;
   final Color subtleTextOnLightBg = Colors.grey.shade700;
   late final Color iconColorOnLightBg;
   late final Color dividerColor;
   late final Color cardShadowColor;
 
-  String _selectedSemester = 'Genap'; // State untuk semester terpilih
-
-  // Data Jadwal Kuliah (Contoh Statis)
-  final List<Map<String, dynamic>> jadwalKuliah = [
-    {
-      'time': '07:00 - 09:10',
-      'subject': 'Testing & Implementasi',
-      'room': 'C 203',
-      'day': 'Senin'
-    },
-    {
-      'time': '10:00 - 12:30',
-      'subject': 'Workshop Design Pengalaman Pengguna',
-      'room': 'C 203',
-      'day': 'Senin'
-    },
-    {
-      'time': '13:00 - 15:30',
-      'subject': 'Workshop Pemrogramman Perangkat Bergerak',
-      'room': 'D 301',
-      'day': 'Selasa'
-    },
-    {
-      'time': '07:30 - 09:50',
-      'subject': 'Workshop Administrasi Jaringan',
-      'room': 'Lab Jarkom',
-      'day': 'Rabu'
-    },
-    // Tambahkan jadwal lain jika ada
-    {
-      'time': '09:00 - 11:30',
-      'subject': 'Basis Data Lanjut',
-      'room': 'D 205',
-      'day': 'Rabu'
-    },
-  ];
-
-  // Daftar urutan hari yang diinginkan
+  // Daftar urutan hari yang diinginkan untuk tampilan
   final List<String> _daysOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 
@@ -68,23 +50,81 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
   void initState() {
     super.initState();
 
+    // Inisialisasi dependencies
+    // Pastikan ApiClient dan AuthService diinisialisasi sesuai dengan setup aplikasi Anda
+    _apiClient = ApiClient(http.Client()); 
+    _authService = AuthService(_apiClient); 
+    _jadwalService = MahasiswaJadwalService(_authService, _apiClient);
+
     // Inisialisasi warna tambahan
     iconColorOnLightBg = primaryBlue.withOpacity(0.75);
     dividerColor = primaryBlue.withOpacity(0.2);
     cardShadowColor = primaryBlue.withOpacity(0.08);
 
-    // Konfigurasi Animasi (Konsisten dengan DosenJadwalPage)
+    // Konfigurasi Animasi
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 600), 
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: Curves.easeOut,
+        curve: Curves.easeOutCubic, 
       ),
     );
-    _animationController.forward();
+    
+    // Memuat data jadwal saat halaman pertama kali dibuka
+    _fetchJadwalKuliah(); 
+  }
+
+  Future<void> _fetchJadwalKuliah() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _apiMessage = '';
+    });
+
+    try {
+      // Menggunakan service yang mengembalikan ApiMahasiswaJadwalResponse
+      final ApiMahasiswaJadwalResponse response = await _jadwalService.getJadwalKuliahMahasiswa();
+      if (mounted) {
+        setState(() {
+          _jadwalKuliahData = response.jadwal; // Tipe data sudah sesuai
+          _apiMessage = response.message;
+          
+          // Mencoba mengambil nama semester dari data pertama yang valid
+          if (response.jadwal.isNotEmpty) {
+            final firstDayWithSchedule = response.jadwal.entries.firstWhere(
+                (entry) => entry.value.isNotEmpty, 
+                orElse: () => const MapEntry('', []) // Fallback jika tidak ada jadwal sama sekali
+            );
+            if (firstDayWithSchedule.value.isNotEmpty) {
+              // Menggunakan properti semester dari MahasiswaJadwalItem
+              _currentSemesterDisplay = firstDayWithSchedule.value.first.semester; 
+            } else {
+              _currentSemesterDisplay = "N/A"; // Jika tidak ada jadwal sama sekali
+            }
+          } else {
+            _currentSemesterDisplay = "N/A"; // Jika map jadwal kosong
+          }
+
+          _isLoading = false;
+        });
+        // Memulai animasi setelah data dimuat atau error ditangani
+        _animationController.forward(from: 0.0); 
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Gagal memuat jadwal: ${e.toString().replaceFirst("Exception: ", "")}";
+          _isLoading = false;
+        });
+        // Memulai animasi juga jika terjadi error agar halaman tidak blank
+        _animationController.forward(from: 0.0);
+      }
+      print("Error fetching jadwal kuliah mahasiswa: $e");
+    }
   }
 
   @override
@@ -94,14 +134,20 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
   }
 
   Future<void> _refreshJadwal() async {
-    // Implementasi logika refresh data jika diperlukan (misalnya dari API)
-    // Untuk data statis, kita bisa menambahkan sedikit delay untuk simulasi
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() {
-        // Proses ulang data jika ada perubahan atau hanya untuk memicu rebuild
-      });
+    // Memastikan animasi direset jika pengguna melakukan pull-to-refresh saat data sudah ada
+    if (!_isLoading) {
+      _animationController.reset();
     }
+    await _fetchJadwalKuliah();
+  }
+
+  int _calculateTotalMataKuliah() {
+    if (_jadwalKuliahData.isEmpty) return 0;
+    int total = 0;
+    _jadwalKuliahData.values.forEach((listMk) {
+      total += listMk.length;
+    });
+    return total;
   }
 
   @override
@@ -110,14 +156,21 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         leading: const BackButton(color: Colors.white),
-        backgroundColor: primaryBlue, // Latar belakang solid
-        elevation: 1.0, // Elevasi AppBar
+        backgroundColor: primaryBlue,
+        elevation: 1.0,
         title: const Text(
           'Jadwal Kuliah',
           style: TextStyle(
               color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
         ),
         centerTitle: true,
+         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: Colors.white),
+            onPressed: _isLoading ? null : _refreshJadwal, // Nonaktifkan tombol saat loading
+            tooltip: 'Refresh Jadwal',
+          )
+        ],
       ),
       body: SafeArea(
         child: FadeTransition(
@@ -132,17 +185,57 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
                 children: [
                   _buildSummaryCard(),
                   const SizedBox(height: 24),
-                  _buildSemesterSelector(),
-                  const SizedBox(height: 24),
-                  _buildSectionHeader('Daftar Jadwal Kuliah', Icons.event_note_outlined), // Icon disesuaikan
-                  const SizedBox(height: 8), // Mengurangi jarak setelah header daftar jadwal
+                  _buildSectionHeader('Daftar Jadwal Kuliah', Icons.event_note_outlined),
+                  const SizedBox(height: 12), 
                   Expanded(
-                    child: _buildScheduleList(),
+                    child: _isLoading
+                        ? Center(child: CircularProgressIndicator(color: primaryBlue))
+                        : _errorMessage != null
+                            ? _buildErrorWidget() // Menampilkan widget error jika ada masalah
+                            : _buildScheduleList(), // Menampilkan daftar jadwal
                   ),
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded, color: Colors.red.shade700, size: 70),
+            const SizedBox(height: 16),
+            Text(
+              "Oops! Terjadi Kesalahan",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage ?? "Gagal memuat data. Silakan coba lagi nanti.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text("Coba Lagi", style: TextStyle(color: Colors.white, fontSize: 16)),
+              onPressed: _fetchJadwalKuliah,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                textStyle: const TextStyle(fontSize: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            )
+          ],
         ),
       ),
     );
@@ -156,14 +249,14 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [primaryBlue, secondaryBlue],
+          colors: [primaryBlue, secondaryBlue.withOpacity(0.85)], 
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow( // Bayangan konsisten dengan DosenJadwalPage
-            color: primaryBlue.withOpacity(0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+          BoxShadow(
+            color: primaryBlue.withOpacity(0.3), 
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -172,26 +265,25 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
           Text(
             'Total Mata Kuliah',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9), // Opacity disesuaikan
+              color: Colors.white.withOpacity(0.95),
               fontSize: 16,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            // Filter jadwalKuliah berdasarkan semester jika diperlukan di masa mendatang
-            // Saat ini menampilkan semua jadwal
-            jadwalKuliah.length.toString(),
+            _isLoading ? "..." : _calculateTotalMataKuliah().toString(),
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 36,
+              fontSize: 38, 
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            'Semester $_selectedSemester 2024/2025', // Contoh tahun ajaran
+             _isLoading ? "Memuat semester..." : 'Semester: $_currentSemesterDisplay',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9), // Opacity disesuaikan
+              color: Colors.white.withOpacity(0.9),
               fontSize: 14,
             ),
           ),
@@ -203,12 +295,12 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, color: primaryBlue, size: 22), // Ukuran ikon disesuaikan
-        const SizedBox(width: 10), // Jarak disesuaikan
+        Icon(icon, color: primaryBlue, size: 24), 
+        const SizedBox(width: 12),
         Text(
           title,
           style: TextStyle(
-            fontSize: 18, // Ukuran font disesuaikan
+            fontSize: 19, 
             fontWeight: FontWeight.bold,
             color: primaryBlue,
           ),
@@ -217,68 +309,20 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
     );
   }
 
-  Widget _buildSemesterSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader('Pilih Semester', Icons.calendar_today_outlined), // Icon disesuaikan
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // Padding vertikal ditambahkan
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-            boxShadow: [
-              BoxShadow(
-                color: cardShadowColor, // Menggunakan cardShadowColor dari DosenJadwalPage
-                blurRadius: 5,         // Disesuaikan agar lebih subtle
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _selectedSemester,
-              icon: Icon(Icons.keyboard_arrow_down, color: primaryBlue),
-              style: TextStyle(
-                color: primaryBlue, // Warna teks dropdown disesuaikan
-                fontSize: 16,
-                fontWeight: FontWeight.w500, // Konsistensi font weight
-              ),
-              items: ['Ganjil', 'Genap'] // Bisa diperluas dengan semester lain
-                  .map((e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(e, style: TextStyle(color: textOnLightBg)))) // Warna teks item
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedSemester = value;
-                    // Implementasi filter jadwal berdasarkan semester jika diperlukan
-                  });
-                }
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String text) {
+  Widget _buildInfoRow(IconData icon, String text, {Color? textColor}) {
     return Padding(
-      padding: const EdgeInsets.only(top: 5.0),
+      padding: const EdgeInsets.only(top: 6.0), 
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start, 
         children: [
-          Icon(icon, size: 15, color: iconColorOnLightBg),
-          const SizedBox(width: 8),
+          Icon(icon, size: 16, color: iconColorOnLightBg.withOpacity(0.9)), 
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              text,
-              style: TextStyle(fontSize: 13.5, color: subtleTextOnLightBg),
+              text.isNotEmpty ? text : '-', 
+              style: TextStyle(fontSize: 14, color: textColor ?? subtleTextOnLightBg), 
               overflow: TextOverflow.ellipsis,
+              maxLines: 2, 
             ),
           ),
         ],
@@ -287,52 +331,22 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
   }
 
   Widget _buildScheduleList() {
-    Map<String, List<Map<String, dynamic>>> groupedSchedule = {};
-    for (var jadwal in jadwalKuliah) {
-      String day = jadwal['day'];
-      if (!groupedSchedule.containsKey(day)) {
-        groupedSchedule[day] = [];
-      }
-      groupedSchedule[day]!.add(jadwal);
-    }
-
-    // Mengurutkan jadwal dalam setiap hari berdasarkan jam mulai (bagian pertama dari string 'time')
-    groupedSchedule.forEach((day, schedules) {
-      schedules.sort((a, b) {
-        String timeA = a['time'].split(' - ')[0];
-        String timeB = b['time'].split(' - ')[0];
-        return timeA.compareTo(timeB);
-      });
-    });
-
-
-    // Mengurutkan hari berdasarkan _daysOrder
-    List<String> activeDays = groupedSchedule.keys.toList()
-      ..sort((a, b) {
-        int indexA = _daysOrder.indexOf(a);
-        int indexB = _daysOrder.indexOf(b);
-        // Handle jika hari tidak ada di _daysOrder (seharusnya tidak terjadi jika data valid)
-        if (indexA == -1) return 1;
-        if (indexB == -1) return -1;
-        return indexA.compareTo(indexB);
-      });
-
-    if (activeDays.isEmpty) {
+    if (_jadwalKuliahData.isEmpty && !_isLoading) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0), 
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.event_busy_outlined, size: 80, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
+              Icon(Icons.calendar_today_outlined, size: 90, color: Colors.grey.shade400), 
+              const SizedBox(height: 20),
               Text(
                 "Tidak Ada Jadwal",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
-                "Jadwal kuliah untuk semester ini belum tersedia.",
+                _apiMessage.isNotEmpty ? _apiMessage : "Jadwal kuliah untuk saat ini belum tersedia.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               ),
@@ -342,82 +356,99 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
       );
     }
 
+    List<String> activeDays = _jadwalKuliahData.keys.toList()
+      ..sort((a, b) {
+        int indexA = _daysOrder.indexOf(a);
+        int indexB = _daysOrder.indexOf(b);
+        if (indexA == -1 && indexB == -1) return a.compareTo(b); 
+        if (indexA == -1) return 1; 
+        if (indexB == -1) return -1;
+        return indexA.compareTo(indexB);
+      });
+
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 8.0), // Padding atas untuk list
-      physics: const BouncingScrollPhysics(), // Atau AlwaysScrollableScrollPhysics() jika ingin bisa refresh saat item sedikit
+      padding: const EdgeInsets.only(top: 8.0),
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()), 
       itemCount: activeDays.length,
       itemBuilder: (context, index) {
         String day = activeDays[index];
-        List<Map<String, dynamic>> daySchedules = groupedSchedule[day]!;
+        List<MahasiswaJadwalItem> daySchedules = _jadwalKuliahData[day]!;
+
+        daySchedules.sort((a, b) {
+          // Menggunakan properti jamMulai dari MahasiswaJadwalItem
+          String timeA = a.jamMulai; 
+          String timeB = b.jamMulai;
+          return timeA.compareTo(timeB);
+        });
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 16.0, bottom: 4.0), // Padding atas ditambah
+              padding: EdgeInsets.only(top: (index == 0 ? 8.0 : 20.0), bottom: 6.0), 
               child: Text(
                 day,
                 style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w600,
-                  color: textOnLightBg,
+                  fontSize: 20, 
+                  fontWeight: FontWeight.w600, 
+                  color: textOnLightBg.withOpacity(0.9),
                 ),
               ),
             ),
-            Divider(color: dividerColor, height: 12, thickness: 0.8),
-            const SizedBox(height: 10),
-            ...daySchedules.map((jadwal) {
-              List<String> times = jadwal['time'].split(' - ');
-              String jamMulai = times.isNotEmpty ? times[0] : "--:--";
-              String jamSelesai = times.length > 1 ? times[1] : "--:--";
-              // int slotNumber = daySchedules.indexOf(jadwal) + 1; // Nomor urut per hari
-
-              return _buildScheduleSlot(
-                jamMulai: jamMulai,
-                jamSelesai: jamSelesai,
-                subject: jadwal['subject'],
-                room: jadwal['room'],
-                // slotNumber: slotNumber, // Jika ingin menampilkan nomor urut
-              );
+            Divider(color: dividerColor.withOpacity(0.7), height: 12, thickness: 1), 
+            const SizedBox(height: 12),
+            ...daySchedules.map((jadwalItem) {
+              // Mengirim MahasiswaJadwalItem ke _buildScheduleSlot
+              return _buildScheduleSlot(jadwalItem); 
             }).toList(),
-             if (index < activeDays.length -1 ) const SizedBox(height: 8), // Jarak antar hari kecuali hari terakhir
-
+             if (index < activeDays.length -1 ) const SizedBox(height: 12), 
           ],
         );
       },
     );
   }
 
-  Widget _buildScheduleSlot({
-    required String jamMulai,
-    required String jamSelesai,
-    required String subject,
-    required String room,
-    // int? slotNumber, // Opsional
-  }) {
+  Widget _buildScheduleSlot(MahasiswaJadwalItem jadwal) { 
+    // Mengakses properti langsung dari MahasiswaJadwalItem
+    String jamMulai = jadwal.jamMulai;
+    String jamSelesai = jadwal.jamSelesai;
+    String namaMk = jadwal.namaMk; 
+    String kodeMk = jadwal.kodeMk; 
+    String dosenPengampu = jadwal.dosenPengampu; 
+    String ruang = jadwal.ruang; 
+    String kelasMatakuliah = jadwal.kelasMatakuliah; 
+    String prodiMk = jadwal.prodiMk; 
+    String sksDisplay = jadwal.sks.toString(); // sks di MahasiswaJadwalItem adalah int
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      elevation: 2.0,
-      shadowColor: cardShadowColor,
+      margin: const EdgeInsets.only(bottom: 18.0), 
+      elevation: 2.5, 
+      shadowColor: cardShadowColor.withOpacity(0.7),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(14.0), 
       ),
       color: Colors.white,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(14.0),
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Detail mata kuliah: $subject")),
+            SnackBar(
+              content: Text("Jadwal: $namaMk ($kodeMk)"), 
+              backgroundColor: secondaryBlue, 
+              behavior: SnackBarBehavior.floating, 
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           );
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+          padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 10.0), 
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start, 
             children: [
               Container(
-                width: 75,
+                width: 80, 
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                    const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -425,77 +456,71 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
                     Text(
                       jamMulai,
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 17.5, 
                         fontWeight: FontWeight.bold,
                         color: primaryBlue,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    Container(
-                      height: 10,
-                      width: 1.2,
-                      color: dividerColor,
-                      margin: const EdgeInsets.symmetric(vertical: 2),
+                    Container( 
+                      height: 12, 
+                      width: 1.5, 
+                      color: dividerColor.withOpacity(0.8),
+                      margin: const EdgeInsets.symmetric(vertical: 3), 
                     ),
                     Text(
                       jamSelesai,
                       style: TextStyle(
-                        fontSize: 15,
-                        color: subtleTextOnLightBg,
+                        fontSize: 15.5, 
+                        color: subtleTextOnLightBg.withOpacity(0.9),
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
-              VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: dividerColor.withOpacity(0.5),
+              VerticalDivider( 
+                  width: 1.5, 
+                  thickness: 1.5,
+                  color: dividerColor.withOpacity(0.6),
                   indent: 8,
                   endIndent: 8),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14), 
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            subject,
-                            style: TextStyle(
-                              fontSize: 16.5,
-                              fontWeight: FontWeight.bold,
-                              color: textOnLightBg,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        // if (slotNumber != null) ...[ // Contoh jika ingin ada nomor slot
-                        //   const SizedBox(width: 8),
-                        //   Container(
-                        //     padding: const EdgeInsets.symmetric(
-                        //         horizontal: 7, vertical: 3),
-                        //     decoration: BoxDecoration(
-                        //       color: primaryBlue.withOpacity(0.1),
-                        //       borderRadius: BorderRadius.circular(6),
-                        //     ),
-                        //     child: Text(
-                        //       '$slotNumber',
-                        //       style: TextStyle(
-                        //         fontSize: 12,
-                        //         fontWeight: FontWeight.bold,
-                        //         color: primaryBlue,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ]
-                      ],
+                    Text(
+                      namaMk, 
+                      style: TextStyle(
+                        fontSize: 17, 
+                        fontWeight: FontWeight.bold,
+                        color: textOnLightBg,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 10),
-                    _buildInfoRow(Icons.location_on_outlined, room),
-                    // _buildInfoRow(Icons.person_outline_rounded, "Nama Dosen"), // Contoh jika ada data dosen
+                    const SizedBox(height: 2),
+                    Text( 
+                      kodeMk, 
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: primaryBlue.withOpacity(0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8), 
+                    if (dosenPengampu.isNotEmpty) 
+                      _buildInfoRow(Icons.person_pin_circle_outlined, dosenPengampu),
+                    if (ruang.isNotEmpty) 
+                      _buildInfoRow(Icons.meeting_room_outlined, ruang),
+                    if (kelasMatakuliah.isNotEmpty) 
+                       _buildInfoRow(Icons.group_outlined, kelasMatakuliah),
+                    if (prodiMk.isNotEmpty) 
+                      _buildInfoRow(Icons.school_outlined, prodiMk),
+                    // Menampilkan SKS jika ada dan bukan "0"
+                    if (sksDisplay != "0") 
+                      _buildInfoRow(Icons.star_half_outlined, "$sksDisplay SKS", textColor: primaryBlue),
                   ],
                 ),
               ),
@@ -506,3 +531,4 @@ class _MahasiswaJadwalPageState extends State<MahasiswaJadwalPage>
     );
   }
 }
+  

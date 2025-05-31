@@ -11,7 +11,9 @@ import 'package:mobile_siakad/models/mahasiswa_profile_model.dart';
 import 'package:mobile_siakad/views/auth/login.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobile_siakad/models/matakuliah_model.dart';
+// Import service dan model baru
+import 'package:mobile_siakad/services/mahasiswa/mahasiswa_dashboard_service.dart';
+import 'package:mobile_siakad/models/mahasiswa_jadwal_model.dart';
 
 class MahasiswaDashboardPage extends StatefulWidget {
   const MahasiswaDashboardPage({super.key});
@@ -27,12 +29,15 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
 
   User? _currentUser;
   MahasiswaProfile? _mahasiswaProfile;
-  List<MataKuliah> _jadwalHariIni = [];
+  // Ganti tipe dari List<MataKuliah> menjadi List<MahasiswaJadwalItem>
+  List<MahasiswaJadwalItem> _jadwalHariIni = [];
   bool _isLoading = true;
   String? _errorMessage;
 
   late final AuthService _authService;
   late final MahasiswaProfileService _profileService;
+  // Tambahkan service baru
+  late final MahasiswaDashboardService _dashboardService;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -43,6 +48,8 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     final apiClient = ApiClient(http.Client());
     _authService = AuthService(apiClient);
     _profileService = MahasiswaProfileService(apiClient);
+    // Inisialisasi dashboard service
+    _dashboardService = MahasiswaDashboardService(apiClient: apiClient);
 
     _loadInitialData();
 
@@ -75,27 +82,24 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     try {
       final userFuture = _authService.getCurrentUser();
       final mahasiswaProfileFuture = _profileService.getProfile();
+      // Tambahkan pemanggilan service jadwal hari ini
+      final jadwalHariIniFuture = _dashboardService.getJadwalHariIni();
+      
       final results = await Future.wait([
         userFuture,
         mahasiswaProfileFuture,
+        jadwalHariIniFuture,
       ]);
 
       final User? user = results[0] as User?;
       final MahasiswaProfile? mahasiswaProfile = results[1] as MahasiswaProfile?; 
-
-      final List<MataKuliah> semuaMataKuliah = []; 
-      
-      final String hariIniString = DateFormat('EEEE', 'id_ID').format(DateTime.now());
-      final List<MataKuliah> filteredJadwal = semuaMataKuliah
-          .where((mk) => mk.hari.toLowerCase() == hariIniString.toLowerCase())
-          .toList();
-      filteredJadwal.sort((a, b) => a.jamMulai.compareTo(b.jamMulai));
+      final List<MahasiswaJadwalItem> jadwalHariIni = results[2] as List<MahasiswaJadwalItem>;
 
       if (mounted) {
         setState(() {
           _currentUser = user;
           _mahasiswaProfile = mahasiswaProfile;
-          _jadwalHariIni = filteredJadwal;
+          _jadwalHariIni = jadwalHariIni;
         });
       }
     } catch (e) {
@@ -251,7 +255,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                 context,
                 MaterialPageRoute(builder: (context) => const MahasiswaProfilPage()),
               ).then((_) {
-                _loadInitialData(isRefresh: true); // Refresh data setelah edit profil
+                _loadInitialData(isRefresh: true);
               });
             },
           ),
@@ -288,7 +292,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Berita Terbaru', Icons.newspaper_outlined), // Icon disamakan
+          _buildSectionHeader('Berita Terbaru', Icons.newspaper_outlined),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -302,7 +306,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                 ),
               ],
             ),
-            child: ClipRRect( // Menggunakan ClipRRect dengan BorderRadius.all
+            child: ClipRRect(
               borderRadius: const BorderRadius.all(Radius.circular(16)),
               child: Image.asset(
                 'assets/images/pens.png',
@@ -323,7 +327,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Akademik', Icons.school_outlined), // Icon disamakan
+          _buildSectionHeader('Akademik', Icons.school_outlined),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -370,7 +374,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
             },
             child: Row(
               children: [
-                _buildSectionHeader('Jadwal Kuliah Hari Ini', Icons.access_time_filled_outlined), // Icon disamakan
+                _buildSectionHeader('Jadwal Kuliah Hari Ini', Icons.access_time_filled_outlined),
                 const Spacer(),
                 Icon(Icons.arrow_forward_ios, size: 16, color: primaryBlue),
               ],
@@ -386,12 +390,12 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
             ),
           ),
           const SizedBox(height: 12),
-          if (_isLoading && _jadwalHariIni.isEmpty) // Tampilkan loading jika masih memuat dan jadwal kosong
+          if (_isLoading && _jadwalHariIni.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20.0),
               child: Center(child: CircularProgressIndicator(color: primaryBlue)),
             )
-          else if (!_isLoading && _jadwalHariIni.isEmpty) // Tampilkan pesan jika tidak loading dan jadwal kosong
+          else if (!_isLoading && _jadwalHariIni.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20.0),
@@ -407,12 +411,14 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _jadwalHariIni.length,
               itemBuilder: (context, index) {
-                final mk = _jadwalHariIni[index];
+                final jadwal = _jadwalHariIni[index];
                 return _classCard(
-                  mk.jamMulai.substring(0, 5),
-                  mk.jamSelesai.substring(0, 5),
-                  mk.namaMk,
-                  mk.ruang.namaRuang, // Asumsi struktur RuangModel sama
+                  jadwal.jamMulai.length > 5 ? jadwal.jamMulai.substring(0, 5) : jadwal.jamMulai,
+                  jadwal.jamSelesai.length > 5 ? jadwal.jamSelesai.substring(0, 5) : jadwal.jamSelesai,
+                  jadwal.namaMk,
+                  jadwal.ruang,
+                  kodeMk: jadwal.kodeMk,
+                  dosenPengampu: jadwal.dosenPengampu,
                 );
               },
             ),
@@ -422,7 +428,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
   }
 
   Widget _menuButton(BuildContext context, IconData icon, String label, Widget page) {
-    return Expanded( // Ditambahkan Expanded
+    return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -441,7 +447,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
               color: Colors.transparent,
               shape: const CircleBorder(),
               child: InkWell(
-                borderRadius: BorderRadius.circular(28), // Disesuaikan
+                borderRadius: BorderRadius.circular(28),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -450,8 +456,8 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                 },
                 child: CircleAvatar(
                   backgroundColor: primaryBlue,
-                  radius: 28, // Disesuaikan
-                  child: Icon(icon, color: Colors.white, size: 24), // Disesuaikan
+                  radius: 28,
+                  child: Icon(icon, color: Colors.white, size: 24),
                 ),
               ),
             ),
@@ -462,7 +468,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
             textAlign: TextAlign.center,
             style: TextStyle(
               fontWeight: FontWeight.w500,
-              fontSize: 13, // Disesuaikan
+              fontSize: 13,
               color: Colors.grey[800],
             ),
           ),
@@ -471,7 +477,8 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     );
   }
 
-  Widget _classCard(String start, String end, String subject, String room) {
+  // Update method _classCard untuk menerima parameter tambahan dari MahasiswaJadwalItem
+  Widget _classCard(String start, String end, String subject, String room, {String? kodeMk, String? dosenPengampu}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       width: double.infinity,
@@ -494,14 +501,36 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "$start → $end",
-            style: const TextStyle(
-              color: Colors.white70, // Disesuaikan
-              fontSize: 14,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "$start → $end",
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (kodeMk != null && kodeMk.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    kodeMk,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             subject,
             style: const TextStyle(
@@ -513,17 +542,37 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.location_on, color: Colors.white70, size: 16), // Disesuaikan
+              const Icon(Icons.location_on, color: Colors.white70, size: 16),
               const SizedBox(width: 4),
               Text(
                 room,
                 style: const TextStyle(
-                  color: Colors.white70, // Disesuaikan
+                  color: Colors.white70,
                   fontSize: 14,
                 ),
               ),
             ],
           ),
+          if (dosenPengampu != null && dosenPengampu.isNotEmpty && dosenPengampu != 'N/A')
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  const Icon(Icons.person, color: Colors.white70, size: 16),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      dosenPengampu,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -536,7 +585,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       backgroundColor: Colors.grey[100],
       endDrawer: _buildDrawer(),
       body: SafeArea(
-        child: FadeTransition( // Ditambahkan FadeTransition
+        child: FadeTransition(
           opacity: _fadeAnimation,
           child: Column(
             children: [
@@ -545,7 +594,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                 child: RefreshIndicator(
                   onRefresh: () => _loadInitialData(isRefresh: true),
                   color: primaryBlue,
-                  child: _isLoading && _jadwalHariIni.isEmpty && _currentUser == null // Kondisi loading awal yang lebih spesifik
+                  child: _isLoading && _jadwalHariIni.isEmpty && _currentUser == null
                       ? Center(child: CircularProgressIndicator(color: primaryBlue))
                       : _errorMessage != null
                           ? Center(
@@ -579,7 +628,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const SizedBox(height: 0), // Margin sudah diatur oleh header
+                                  const SizedBox(height: 0),
                                   _buildNewsSection(),
                                   const SizedBox(height: 24),
                                   _buildAcademicMenu(),

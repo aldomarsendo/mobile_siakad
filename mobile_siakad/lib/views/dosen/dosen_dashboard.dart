@@ -13,6 +13,9 @@ import 'package:mobile_siakad/services/dosen/dosen_jadwal_service.dart';
 import 'package:mobile_siakad/models/matakuliah_model.dart';
 import 'package:mobile_siakad/views/dosen/frs/kelas_wali.dart';
 import 'package:mobile_siakad/views/dosen/nilai/list_matakuliah.dart';
+import 'package:mobile_siakad/services/dosen/berita_service.dart';
+import 'package:mobile_siakad/models/berita_model.dart';
+import 'package:mobile_siakad/views/dosen/berita_detail_page.dart';
 
 class DosenDashboardPage extends StatefulWidget {
   const DosenDashboardPage({super.key});
@@ -21,23 +24,27 @@ class DosenDashboardPage extends StatefulWidget {
   State<DosenDashboardPage> createState() => _DosenDashboardPageState();
 }
 
-class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTickerProviderStateMixin { // Added SingleTickerProviderStateMixin
+class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final Color primaryBlue = const Color(0xFF133B7A);
-  final Color secondaryBlue = const Color(0xFF1E5BB0); // Added secondaryBlue
+  final Color secondaryBlue = const Color(0xFF1E5BB0);
+  final PageController _pageController = PageController();
 
   User? _currentUser;
   Dosen? _dosenProfile;
   List<MataKuliah> _jadwalHariIni = [];
+  List<Berita> _beritaList = [];
+  int _currentBeritaIndex = 0;
   bool _isLoading = true;
   String? _errorMessage;
 
   late final AuthService _authService;
   late final DosenProfileService _profileService;
   late final DosenJadwalService _jadwalService;
+  late final BeritaService _beritaService;
   
-  late AnimationController _animationController; // Added for FadeTransition
-  late Animation<double> _fadeAnimation; // Added for FadeTransition
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
@@ -46,24 +53,26 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     _authService = AuthService(apiClient);
     _profileService = DosenProfileService(apiClient);
     _jadwalService = DosenJadwalService(_authService, apiClient);
+    _beritaService = BeritaService(_authService, apiClient);
     _loadInitialData();
 
-    _animationController = AnimationController( // Initialize AnimationController
+    _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate( // Initialize FadeAnimation
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: Curves.easeInOut,
       ),
     );
-    _animationController.forward(); // Start animation
+    _animationController.forward();
   }
 
   @override
   void dispose() {
-    _animationController.dispose(); // Dispose AnimationController
+    _animationController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -78,16 +87,19 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
       final userFuture = _authService.getCurrentUser();
       final dosenProfileFuture = _profileService.getProfile();
       final semuaMataKuliahFuture = _jadwalService.getMataKuliah();
+      final beritaFuture = _beritaService.getBerita();
 
       final results = await Future.wait([
         userFuture,
         dosenProfileFuture,
         semuaMataKuliahFuture,
+        beritaFuture,
       ]);
 
       final User? user = results[0] as User?;
       final Dosen? dosen = results[1] as Dosen?;
       final List<MataKuliah> semuaMataKuliah = results[2] as List<MataKuliah>;
+      final BeritaResponse beritaResponse = results[3] as BeritaResponse;
       
       final String hariIniString = DateFormat('EEEE', 'id_ID').format(DateTime.now());
       final List<MataKuliah> filteredJadwal = semuaMataKuliah
@@ -100,6 +112,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
           _currentUser = user;
           _dosenProfile = dosen;
           _jadwalHariIni = filteredJadwal;
+          _beritaList = beritaResponse.data;
         });
       }
     } catch (e) {
@@ -137,10 +150,9 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     }
   }
   
-  // Copied from MahasiswaDashboardPage and adapted
   Widget _buildHeader() {
     return Container(
-      margin: const EdgeInsets.all(16), // Margin for the header itself
+      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -148,7 +160,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
           end: Alignment.bottomRight,
           colors: [primaryBlue, secondaryBlue],
         ),
-        borderRadius: BorderRadius.circular(16), // Rounded corners for the header
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -162,7 +174,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
         children: [
           Row(
             children: [
-              CircleAvatar( // Placeholder, ideally use user's actual avatar URL if available
+              CircleAvatar(
                 backgroundImage: NetworkImage('https://st3.depositphotos.com/6672868/13701/v/450/depositphotos_137014128-stock-illustration-user-profile-icon.jpg'),
                 backgroundColor: Colors.white.withOpacity(0.5),
               ),
@@ -199,20 +211,18 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
               ),
             ],
           ),
-          // SizedBox(height: 16), // Optional: if more content needed in header
         ],
       ),
     );
   }
 
-  // Adapted from MahasiswaDashboardPage
   Widget _buildDrawer() {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration( // Gradient for DrawerHeader
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -242,7 +252,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
                             ? '${_dosenProfile!.nidn} (Dosen)' 
                             : 'NIDN Dosen',
                         style: const TextStyle(
-                          color: Colors.white70, // Adjusted for better contrast
+                          color: Colors.white70,
                           fontSize: 14
                         ),
                       ),
@@ -272,7 +282,6 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     );
   }
 
-  // Section header helper, adapted from MahasiswaDashboardPage
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
       children: [
@@ -291,49 +300,221 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
   }
 
   Widget _buildNewsSection() {
-    // Structure adapted from MahasiswaDashboardPage
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0), // Consistent horizontal padding
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader('Berita Terbaru', Icons.newspaper_outlined), // Using new helper
-          const SizedBox(height: 12),
-          Container( // Card-like container
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: ClipRRect( // To clip the image corners
-              borderRadius: const BorderRadius.all(Radius.circular(16)),
-              child: Image.asset(
-                'assets/images/pens.png', // Ensure this asset exists
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildAcademicMenu() {
-    // Structure adapted from MahasiswaDashboardPage
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Akademik', Icons.school_outlined), // Using new helper
+          _buildSectionHeader('Berita Terbaru', Icons.newspaper_outlined),
+          const SizedBox(height: 12),
+          _beritaList.isEmpty 
+            ? Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(20),
+                child: const Center(
+                  child: Text('Tidak ada berita terbaru'),
+                ),
+              )
+            : Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentBeritaIndex = index;
+                        });
+                      },
+                      itemCount: _beritaList.length,
+                      itemBuilder: (context, index) {
+                        final berita = _beritaList[index];
+                        return _buildBeritaCard(berita);
+                      },
+                    ),
+                    if (_beritaList.length > 1)
+                      Positioned(
+                        bottom: 12,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            _beritaList.length,
+                            (index) => Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _currentBeritaIndex == index
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  // Replace the _buildBeritaCard method in your dashboard with this improved version:
+
+Widget _buildBeritaCard(Berita berita) {
+  final String formattedDate = DateFormat('d MMM yyyy', 'id_ID').format(berita.publishedAt);
+  
+  return Container(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [primaryBlue, secondaryBlue],
+      ),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      berita.targetRole.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      berita.judul,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Text(
+                        berita.isi,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    // Debug print to see what ID we're trying to navigate to
+                    print('Navigating to berita with ID: ${berita.id}');
+                    
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BeritaDetailPage(
+                          beritaId: berita.id,
+                          initialTitle: berita.judul,
+                        ),
+                      ),
+                    ).then((_) {
+                      // Optionally refresh data when returning from detail page
+                      // _loadInitialData(isRefresh: true);
+                    });
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text(
+                    'Baca Selengkapnya',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+  Widget _buildAcademicMenu() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Akademik', Icons.school_outlined),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -351,7 +532,6 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                // Using the new _menuButton styling
                 _menuButton(context, Icons.calendar_today, "Jadwal", const DosenJadwalPage()),
                 _menuButton(context, Icons.grade, "Nilai", const ListMatakuliahPage()),
                 _menuButton(context, Icons.file_copy, "FRS Wali", const KelasWaliPage()),
@@ -368,11 +548,11 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     String namaHariIniText = DateFormat('EEEE', 'id_ID').format(DateTime.now());
 
     return Padding(
-      padding: const EdgeInsets.all(16.0), // Consistent padding for the whole section
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector( // To make the header tappable for full schedule
+          GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
@@ -381,19 +561,19 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
             },
             child: Row(
               children: [
-                _buildSectionHeader('Jadwal Mengajar Hari Ini', Icons.access_time_filled_outlined), // Using new helper
+                _buildSectionHeader('Jadwal Mengajar Hari Ini', Icons.access_time_filled_outlined),
                 const Spacer(),
                 Icon(Icons.arrow_forward_ios, size: 16, color: primaryBlue),
               ],
             ),
           ),
-          const SizedBox(height: 8), // Reduced space
+          const SizedBox(height: 8),
            Text(
             '$namaHariIniText, $tanggalHariIniText · ${_jadwalHariIni.length} MATA KULIAH', 
             style: TextStyle(
-              fontSize: 12, // Slightly smaller
+              fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700, // Darker grey
+              color: Colors.grey.shade700,
             )
           ),
           const SizedBox(height: 12),
@@ -403,7 +583,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
                 padding: const EdgeInsets.symmetric(vertical: 20.0),
                 child: Text(
                   'Tidak ada jadwal mengajar hari ini.',
-                  style: TextStyle(fontSize: 15, color: Colors.grey[600]), // Adjusted size
+                  style: TextStyle(fontSize: 15, color: Colors.grey[600]),
                 ),
               ),
             )
@@ -414,7 +594,6 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
               itemCount: _jadwalHariIni.length,
               itemBuilder: (context, index) {
                 final mk = _jadwalHariIni[index];
-                // Using new _classCard styling
                 return _classCard(
                     mk.jamMulai.substring(0,5), 
                     mk.jamSelesai.substring(0,5), 
@@ -427,9 +606,8 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     );
   }
 
-  // Adapted from MahasiswaDashboardPage's _menuButton
   Widget _menuButton(BuildContext context, IconData icon, String label, Widget page) {
-    return Expanded( // Ensures buttons take equal space
+    return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -437,18 +615,18 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
             decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(
-                  color: primaryBlue.withOpacity(0.3), // Shadow color from target
+                  color: primaryBlue.withOpacity(0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
               ],
               shape: BoxShape.circle,
             ),
-            child: Material( // For InkWell ripple effect on a circle
+            child: Material(
               color: Colors.transparent,
               shape: const CircleBorder(),
               child: InkWell(
-                borderRadius: BorderRadius.circular(28), // Half of CircleAvatar radius * 2
+                borderRadius: BorderRadius.circular(28),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -456,9 +634,9 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
                   );
                 },
                 child: CircleAvatar(
-                  backgroundColor: primaryBlue, // Target background color
-                  radius: 28, // Target radius
-                  child: Icon(icon, color: Colors.white, size: 24), // Target icon style
+                  backgroundColor: primaryBlue,
+                  radius: 28,
+                  child: Icon(icon, color: Colors.white, size: 24),
                 ),
               ),
             ),
@@ -469,7 +647,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
             textAlign: TextAlign.center,
             style: TextStyle(
               fontWeight: FontWeight.w500,
-              fontSize: 13, // Slightly smaller to fit if labels are long
+              fontSize: 13,
               color: Colors.grey[800],
             ),
           ),
@@ -478,13 +656,12 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     );
   }
 
-  // Class card adapted from MahasiswaDashboardPage
   Widget _classCard(String start, String end, String subject, String room) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12), // Spacing between cards
+      margin: const EdgeInsets.only(bottom: 12),
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: LinearGradient( // Gradient background
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [primaryBlue, secondaryBlue],
@@ -505,7 +682,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
           Text(
             "$start → $end", 
             style: const TextStyle(
-              color: Colors.white70, // Adjusted for readability
+              color: Colors.white70,
               fontSize: 14,
             ),
           ),
@@ -521,12 +698,12 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
           const SizedBox(height: 6),
           Row(
             children: [
-              const Icon(Icons.location_on, color: Colors.white70, size: 16), // Adjusted color
+              const Icon(Icons.location_on, color: Colors.white70, size: 16),
               const SizedBox(width: 4),
               Text(
                 room, 
                 style: const TextStyle(
-                  color: Colors.white70, // Adjusted color
+                  color: Colors.white70,
                   fontSize: 14,
                 ),
               ),
@@ -537,24 +714,23 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.grey[100], // Matched background
-      endDrawer: _buildDrawer(), // Drawer from the right
+      backgroundColor: Colors.grey[100],
+      endDrawer: _buildDrawer(),
       body: SafeArea(
-        child: FadeTransition( // Added FadeTransition
+        child: FadeTransition(
           opacity: _fadeAnimation,
           child: Column(
             children: [
-              _buildHeader(), // New custom header, no AppBar
+              _buildHeader(),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () => _loadInitialData(isRefresh: true),
                   color: primaryBlue,
-                  child: _isLoading && _jadwalHariIni.isEmpty && _currentUser == null // More specific loading condition
+                  child: _isLoading && _jadwalHariIni.isEmpty && _currentUser == null
                       ? Center(child: CircularProgressIndicator(color: primaryBlue))
                       : _errorMessage != null
                           ? Center(
@@ -583,18 +759,18 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
                                 ),
                               ),
                             )
-                          : SingleChildScrollView( // Changed from ListView to SingleChildScrollView for a Column child
-                              physics: const BouncingScrollPhysics(), // For a nice scroll effect
+                          : SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const SizedBox(height: 0), // Removed top padding here, header provides margin
+                                  const SizedBox(height: 0),
                                   _buildNewsSection(),
                                   const SizedBox(height: 24),
                                   _buildAcademicMenu(),
                                   const SizedBox(height: 24),
                                   _buildTodaySchedule(),
-                                  const SizedBox(height: 20), // Padding at the bottom of scroll view
+                                  const SizedBox(height: 20),
                                 ],
                               ),
                             ),
