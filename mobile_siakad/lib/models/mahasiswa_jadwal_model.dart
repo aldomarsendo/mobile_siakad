@@ -1,8 +1,9 @@
 // lib/models/mahasiswa_jadwal_model.dart
 
-// Helper functions (bisa juga diletakkan di file terpisah jika digunakan di banyak model)
+// Helper functions
 String? _parseStringSafe(dynamic value) {
   if (value == null) return null;
+  // Handle cases where "null" string might be sent by API
   if (value is String && value.toLowerCase() == 'null') return null;
   return value.toString();
 }
@@ -14,7 +15,7 @@ int _parseIntSafe(dynamic value, {int defaultValue = 0}) {
     if (value.toLowerCase() == 'null') return defaultValue;
     return int.tryParse(value) ?? defaultValue;
   }
-  if (value is double) return value.toInt();
+  if (value is double) return value.toInt(); // Allow parsing from double
   return defaultValue;
 }
 
@@ -22,8 +23,8 @@ class MahasiswaJadwalItem {
   final int idMkJadwal;
   final String kodeMk;
   final String namaMk;
-  final int sks; // Dari JSON, nilainya 0, tapi tetap kita parse sebagai int
-  final String semester; // Dari JSON, field 'semester'
+  final int sks;
+  final String semester;
   final String hari;
   final String jamMulai;
   final String jamSelesai;
@@ -52,7 +53,7 @@ class MahasiswaJadwalItem {
       idMkJadwal: _parseIntSafe(json['id_mk_jadwal']),
       kodeMk: _parseStringSafe(json['kode_mk']) ?? 'N/A',
       namaMk: _parseStringSafe(json['nama_mk']) ?? 'N/A',
-      sks: _parseIntSafe(json['sks']), // API mengirimkan int
+      sks: _parseIntSafe(json['sks']),
       semester: _parseStringSafe(json['semester']) ?? 'N/A',
       hari: _parseStringSafe(json['hari']) ?? 'N/A',
       jamMulai: _parseStringSafe(json['jam_mulai']) ?? '--:--',
@@ -86,7 +87,7 @@ class MahasiswaJadwalItem {
 }
 
 class ApiMahasiswaJadwalResponse {
-  final Map<String, List<MahasiswaJadwalItem>> jadwal; // Kunci adalah nama hari (String)
+  final Map<String, List<MahasiswaJadwalItem>> jadwal; // Keyed by day name
   final String message;
 
   ApiMahasiswaJadwalResponse({
@@ -96,18 +97,38 @@ class ApiMahasiswaJadwalResponse {
 
   factory ApiMahasiswaJadwalResponse.fromJson(Map<String, dynamic> json) {
     final Map<String, List<MahasiswaJadwalItem>> jadwalMap = {};
+    
+    // Check if 'jadwal' key exists and is a Map
     if (json['jadwal'] != null && json['jadwal'] is Map) {
-      (json['jadwal'] as Map<String, dynamic>).forEach((hari, listJadwalJson) {
+      // Cast to Map<String, dynamic> for safety, though keys might be dynamic from API
+      (json['jadwal'] as Map).forEach((hari, listJadwalJson) {
         if (listJadwalJson is List) {
-          jadwalMap[hari] = listJadwalJson
-              .map((itemJson) => MahasiswaJadwalItem.fromJson(itemJson as Map<String, dynamic>))
+          jadwalMap[hari.toString()] = listJadwalJson
+              .map((itemJson) {
+                // Ensure itemJson is correctly typed before passing to MahasiswaJadwalItem.fromJson
+                if (itemJson is Map<String, dynamic>) {
+                  return MahasiswaJadwalItem.fromJson(itemJson);
+                } else if (itemJson is Map) { // Handle Map<dynamic, dynamic>
+                  return MahasiswaJadwalItem.fromJson(Map<String, dynamic>.from(itemJson));
+                }
+                // Return a placeholder or throw error if itemJson is not a map
+                // For now, let's filter out invalid items silently, or log an error
+                print('ApiMahasiswaJadwalResponse: Invalid item format in jadwal list for day $hari: $itemJson');
+                return null; 
+              })
+              .whereType<MahasiswaJadwalItem>() // Filter out nulls if any invalid items were skipped
               .toList();
         }
       });
     }
+    
     return ApiMahasiswaJadwalResponse(
       jadwal: jadwalMap,
       message: _parseStringSafe(json['message']) ?? '',
     );
   }
 }
+
+// REMOVED erroneous import statements from the end of the file:
+// import 'package:mobile_siakad/models/mahasiswa_jadwal_model.dart';
+// import 'package:mobile_siakad/services/api_client.dart';

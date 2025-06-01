@@ -32,7 +32,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
   User? _currentUser;
   MahasiswaProfile? _mahasiswaProfile;
   List<MahasiswaJadwalItem> _jadwalHariIni = [];
-  List<Berita> _beritaList = []; 
+  List<Berita> _beritaList = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -41,7 +41,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
   late final MahasiswaDashboardService _dashboardService;
   late final MahasiswaBeritaService _beritaService;
 
-  PageController? _pageController; 
+  PageController? _pageController;
   int _currentBeritaIndex = 0;
 
   late AnimationController _animationController;
@@ -53,6 +53,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     final apiClient = ApiClient(http.Client());
     _authService = AuthService(apiClient);
     _profileService = MahasiswaProfileService(apiClient);
+    // Instantiation of MahasiswaDashboardService
     _dashboardService = MahasiswaDashboardService(apiClient: apiClient);
     _beritaService = MahasiswaBeritaService(_authService, apiClient);
 
@@ -88,6 +89,8 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     try {
       final userFuture = _authService.getCurrentUser();
       final mahasiswaProfileFuture = _profileService.getProfile();
+      // Calling the MahasiswaDashboardService to get today's schedule
+      // This service handles parsing and returns Future<List<MahasiswaJadwalItem>>
       final jadwalHariIniFuture = _dashboardService.getJadwalHariIni();
       final beritaFuture = _beritaService.getBerita();
       
@@ -99,7 +102,9 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       ]);
 
       final User? user = results[0] as User?;
-      final MahasiswaProfile? mahasiswaProfile = results[1] as MahasiswaProfile?; 
+      final MahasiswaProfile? mahasiswaProfile = results[1] as MahasiswaProfile?;
+      // Assigning the result from the service to the local state variable
+      // The service ensures this is a List<MahasiswaJadwalItem>, already sorted.
       final List<MahasiswaJadwalItem> jadwalHariIni = results[2] as List<MahasiswaJadwalItem>;
       final BeritaResponse beritaResponse = results[3] as BeritaResponse;
 
@@ -107,22 +112,26 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
         setState(() {
           _currentUser = user;
           _mahasiswaProfile = mahasiswaProfile;
-          _jadwalHariIni = jadwalHariIni;
+          _jadwalHariIni = jadwalHariIni; // State updated with data from service
           _beritaList = beritaResponse.data;
 
           if (_beritaList.isNotEmpty) {
-            _pageController = PageController(viewportFraction: 0.9); 
+            // Initialize or update PageController only if there are news items
+            if (_pageController == null || (_pageController?.viewportFraction != 0.9) || isRefresh) {
+                _pageController?.dispose(); // Dispose old one if exists
+                _pageController = PageController(viewportFraction: 0.9);
+            }
           } else {
-            _pageController?.dispose(); 
+            _pageController?.dispose();
             _pageController = null;
           }
-           _currentBeritaIndex = 0; 
+          _currentBeritaIndex = 0; // Reset index on data load
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Gagal memuat data: ${e.toString()}';
+          _errorMessage = 'Gagal memuat data: ${e.toString().replaceFirst("Exception: ", "")}';
         });
       }
     } finally {
@@ -147,7 +156,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saat logout: $e')),
+          SnackBar(content: Text('Error saat logout: ${e.toString().replaceFirst("Exception: ", "")}')),
         );
       }
     }
@@ -179,7 +188,9 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
             children: [
               CircleAvatar(
                 backgroundImage: const NetworkImage('https://st3.depositphotos.com/6672868/13701/v/450/depositphotos_137014128-stock-illustration-user-profile-icon.jpg'),
+                onBackgroundImageError: (_, __) { /* Handle error, e.g. show placeholder */},
                 backgroundColor: Colors.white.withOpacity(0.5),
+                radius: 24,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -238,8 +249,10 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       CircleAvatar(
-                        backgroundImage: NetworkImage('https://st3.depositphotos.com/6672868/13701/v/450/depositphotos_137014128-stock-illustration-user-profile-icon.jpg'),
+                        backgroundImage: const NetworkImage('https://st3.depositphotos.com/6672868/13701/v/450/depositphotos_137014128-stock-illustration-user-profile-icon.jpg'),
+                        onBackgroundImageError: (_, __) {},
                         backgroundColor: Colors.white.withOpacity(0.5),
+                        radius: 28,
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -266,11 +279,12 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
             leading: const Icon(Icons.person_outline),
             title: const Text('Edit Profil'),
             onTap: () {
-              Navigator.pop(context);
+              Navigator.pop(context); // Close drawer
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const MahasiswaProfilPage()),
               ).then((_) {
+                // Refresh data if needed after returning from profile page
                 _loadInitialData(isRefresh: true);
               });
             },
@@ -307,13 +321,13 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20),
         child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-             _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
-             const SizedBox(height: 12),
-            Center(child: CircularProgressIndicator(color: primaryBlue)),
-          ],
-        ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
+              const SizedBox(height: 12),
+              Center(child: CircularProgressIndicator(color: primaryBlue)),
+            ],
+          ),
       );
     }
     if (!_isLoading && _beritaList.isEmpty) {
@@ -349,7 +363,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0), // Padding vertikal untuk section
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -359,36 +373,36 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
           ),
           const SizedBox(height: 12),
           Container(
-            height: 200, // Sesuaikan tinggi PageView
+            height: 200, 
             child: Stack(
               children: [
                 PageView.builder(
                   controller: _pageController,
                   onPageChanged: (index) {
-                    setState(() {
-                      _currentBeritaIndex = index;
-                    });
+                    if (mounted) {
+                      setState(() {
+                        _currentBeritaIndex = index;
+                      });
+                    }
                   },
-                  // Ambil maksimal 5 berita atau semua jika kurang dari 5
-                  itemCount: _beritaList.length > 5 ? 5 : _beritaList.length, 
+                  itemCount: _beritaList.length > 5 ? 5 : _beritaList.length,
                   itemBuilder: (context, index) {
                     final berita = _beritaList[index];
-                    // Padding untuk setiap item di PageView agar tidak terlalu mepet
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0), // Jarak antar kartu berita
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       child: _buildBeritaCard(berita),
                     );
                   },
                 ),
-                if (_beritaList.length > 1 && (_beritaList.length > 5 ? 5 : _beritaList.length) > 1) // Tampilkan indikator jika item lebih dari 1
+                if (_beritaList.length > 1 && (_beritaList.length > 5 ? 5 : _beritaList.length) > 1)
                   Positioned(
-                    bottom: 10, // Posisi indikator
+                    bottom: 10,
                     left: 0,
                     right: 0,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
-                        _beritaList.length > 5 ? 5 : _beritaList.length, // Jumlah indikator sesuai item yang ditampilkan
+                        _beritaList.length > 5 ? 5 : _beritaList.length,
                         (index) => AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -397,8 +411,8 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: _currentBeritaIndex == index
-                                ? Colors.white // Warna indikator aktif
-                                : Colors.white.withOpacity(0.5), // Warna indikator tidak aktif
+                                ? Colors.white 
+                                : Colors.white.withOpacity(0.5),
                           ),
                         ),
                       ),
@@ -416,125 +430,136 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     final String formattedDate = DateFormat('d MMM yy', 'id_ID').format(berita.publishedAt);
   
     return GestureDetector(
+      onTap: () {
+         print('Navigating to Berita Detail: Slug ${berita.slug}');
+         Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MahasiswaBeritaDetailPage(
+                beritaSlug: berita.slug, // Ensure slug is passed
+                initialTitle: berita.judul,
+              ),
+            ),
+          );
+      },
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.bottomLeft, // Ubah arah gradient untuk variasi
+            begin: Alignment.bottomLeft,
             end: Alignment.topRight,
             colors: [primaryBlue.withOpacity(0.95), secondaryBlue.withOpacity(0.85)],
           ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-        child: Padding(
-        padding: const EdgeInsets.all(12.0), 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), 
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    berita.targetRole?.toUpperCase() ?? 'UMUM',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9, // Font lebih kecil
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Text(
-                  formattedDate,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 11, 
-                  ),
-                ),
-              ],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
             ),
-            const SizedBox(height: 8), 
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min, 
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    berita.judul ?? 'Tanpa Judul',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15, 
-                      fontWeight: FontWeight.bold,
-                      height: 1.25,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4), 
-                  Flexible(
                     child: Text(
-                      berita.isi ?? '',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 12.5, 
-                        height: 1.35,
+                      berita.targetRole?.toUpperCase() ?? 'UMUM',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 3, 
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 11,
                     ),
                   ),
                 ],
               ),
-            ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: TextButton(
-                onPressed: () {
-                  print('Baca Selengkapnya: ID ${berita.id}');
-                  Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MahasiswaBeritaDetailPage(
-                            beritaSlug: berita.slug,
-                            initialTitle: berita.judul,
-                          ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      berita.judul ?? 'Tanpa Judul',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Flexible( // Use Flexible for the content to prevent overflow
+                      child: Text(
+                        berita.isi ?? '',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12.5,
+                          height: 1.35,
                         ),
-                      );
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.15),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), 
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  minimumSize: const Size(0, 28), 
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Text(
-                  'Baca Selengkapnya',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11, 
-                    fontWeight: FontWeight.w600,
+              ),
+              Align( // Keep "Baca Selengkapnya" at the bottom
+                alignment: Alignment.bottomRight,
+                child: TextButton(
+                  onPressed: () {
+                    print('Baca Selengkapnya Tapped: Slug ${berita.slug}');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MahasiswaBeritaDetailPage(
+                          beritaSlug: berita.slug, // Ensure slug is passed
+                          initialTitle: berita.judul,
+                        ),
+                      ),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.15),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    minimumSize: const Size(0, 28),
+                  ),
+                  child: const Text(
+                    'Baca Selengkapnya',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -575,6 +600,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
   }
 
   Widget _buildTodaySchedule() {
+    // This widget correctly uses _jadwalHariIni, which is populated by MahasiswaDashboardService
     String tanggalHariIniText = DateFormat('d MMMM yyyy', 'id_ID').format(DateTime.now());
     String namaHariIniText = DateFormat('EEEE', 'id_ID').format(DateTime.now());
 
@@ -599,7 +625,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
             ),
           ),
           const SizedBox(height: 8),
-           Text(
+            Text(
             '$namaHariIniText, $tanggalHariIniText · ${_jadwalHariIni.length} MATA KULIAH',
             style: TextStyle(
               fontSize: 12,
@@ -630,6 +656,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
               itemCount: _jadwalHariIni.length,
               itemBuilder: (context, index) {
                 final jadwal = _jadwalHariIni[index];
+                // _classCard is called with data from MahasiswaJadwalItem
                 return _classCard(
                   jadwal.jamMulai.length > 5 ? jadwal.jamMulai.substring(0, 5) : jadwal.jamMulai,
                   jadwal.jamSelesai.length > 5 ? jadwal.jamSelesai.substring(0, 5) : jadwal.jamSelesai,
@@ -695,7 +722,6 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     );
   }
 
-  // Update method _classCard untuk menerima parameter tambahan dari MahasiswaJadwalItem
   Widget _classCard(String start, String end, String subject, String room, {String? kodeMk, String? dosenPengampu}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -763,7 +789,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
               const Icon(Icons.location_on, color: Colors.white70, size: 16),
               const SizedBox(width: 4),
               Text(
-                room,
+                room.isNotEmpty ? room : 'N/A', // Handle empty room string
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
@@ -771,7 +797,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
               ),
             ],
           ),
-          if (dosenPengampu != null && dosenPengampu.isNotEmpty && dosenPengampu != 'N/A')
+          if (dosenPengampu != null && dosenPengampu.isNotEmpty && dosenPengampu.toLowerCase() != 'n/a')
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Row(
@@ -798,6 +824,9 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
 
   @override
   Widget build(BuildContext context) {
+    // Ensure intl is initialized for date formatting, typically in main.dart
+    // For example: initializeDateFormatting('id_ID', null);
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.grey[100],
@@ -812,7 +841,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                 child: RefreshIndicator(
                   onRefresh: () => _loadInitialData(isRefresh: true),
                   color: primaryBlue,
-                  child: _isLoading && _jadwalHariIni.isEmpty && _currentUser == null
+                  child: _isLoading && _jadwalHariIni.isEmpty && _currentUser == null && _mahasiswaProfile == null && _beritaList.isEmpty
                       ? Center(child: CircularProgressIndicator(color: primaryBlue))
                       : _errorMessage != null
                           ? Center(
@@ -830,7 +859,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                                     ElevatedButton.icon(
                                       icon: const Icon(Icons.refresh, color: Colors.white),
                                       label: const Text("Coba Lagi", style: TextStyle(color: Colors.white)),
-                                      onPressed: () => _loadInitialData(),
+                                      onPressed: () => _loadInitialData(isRefresh: true), // Use isRefresh true
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: primaryBlue,
                                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -842,17 +871,17 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
                               ),
                             )
                           : SingleChildScrollView(
-                              physics: const BouncingScrollPhysics(),
+                              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()), // Ensure scrollable even when RefreshIndicator is active
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const SizedBox(height: 0),
+                                  const SizedBox(height: 0), // Minimal top padding inside scroll
                                   _buildNewsSection(),
                                   const SizedBox(height: 24),
                                   _buildAcademicMenu(),
                                   const SizedBox(height: 24),
                                   _buildTodaySchedule(),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 20), // Bottom padding
                                 ],
                               ),
                             ),
@@ -865,3 +894,4 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     );
   }
 }
+
