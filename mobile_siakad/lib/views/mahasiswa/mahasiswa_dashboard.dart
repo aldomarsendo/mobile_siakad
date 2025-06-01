@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_siakad/views/mahasiswa/frs/mahasiswa_frs_page.dart';
+import 'package:mobile_siakad/views/mahasiswa/mahasiswa_berita_detail.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_jadwal.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_nilai.dart';
 import 'package:mobile_siakad/views/mahasiswa/mahasiswa_profil.dart';
@@ -11,9 +12,10 @@ import 'package:mobile_siakad/models/mahasiswa_profile_model.dart';
 import 'package:mobile_siakad/views/auth/login.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:http/http.dart' as http;
-// Import service dan model baru
 import 'package:mobile_siakad/services/mahasiswa/mahasiswa_dashboard_service.dart';
 import 'package:mobile_siakad/models/mahasiswa_jadwal_model.dart';
+import 'package:mobile_siakad/services/mahasiswa/mahasiswa_berita_service.dart';
+import 'package:mobile_siakad/models/berita_model.dart';
 
 class MahasiswaDashboardPage extends StatefulWidget {
   const MahasiswaDashboardPage({super.key});
@@ -29,15 +31,18 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
 
   User? _currentUser;
   MahasiswaProfile? _mahasiswaProfile;
-  // Ganti tipe dari List<MataKuliah> menjadi List<MahasiswaJadwalItem>
   List<MahasiswaJadwalItem> _jadwalHariIni = [];
+  List<Berita> _beritaList = []; 
   bool _isLoading = true;
   String? _errorMessage;
 
   late final AuthService _authService;
   late final MahasiswaProfileService _profileService;
-  // Tambahkan service baru
   late final MahasiswaDashboardService _dashboardService;
+  late final MahasiswaBeritaService _beritaService;
+
+  PageController? _pageController; 
+  int _currentBeritaIndex = 0;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -48,8 +53,8 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     final apiClient = ApiClient(http.Client());
     _authService = AuthService(apiClient);
     _profileService = MahasiswaProfileService(apiClient);
-    // Inisialisasi dashboard service
     _dashboardService = MahasiswaDashboardService(apiClient: apiClient);
+    _beritaService = MahasiswaBeritaService(_authService, apiClient);
 
     _loadInitialData();
 
@@ -69,6 +74,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
   @override
   void dispose() {
     _animationController.dispose();
+    _pageController?.dispose();
     super.dispose();
   }
 
@@ -82,28 +88,38 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
     try {
       final userFuture = _authService.getCurrentUser();
       final mahasiswaProfileFuture = _profileService.getProfile();
-      // Tambahkan pemanggilan service jadwal hari ini
       final jadwalHariIniFuture = _dashboardService.getJadwalHariIni();
+      final beritaFuture = _beritaService.getBerita();
       
       final results = await Future.wait([
         userFuture,
         mahasiswaProfileFuture,
         jadwalHariIniFuture,
+        beritaFuture,
       ]);
 
       final User? user = results[0] as User?;
       final MahasiswaProfile? mahasiswaProfile = results[1] as MahasiswaProfile?; 
       final List<MahasiswaJadwalItem> jadwalHariIni = results[2] as List<MahasiswaJadwalItem>;
+      final BeritaResponse beritaResponse = results[3] as BeritaResponse;
 
       if (mounted) {
         setState(() {
           _currentUser = user;
           _mahasiswaProfile = mahasiswaProfile;
           _jadwalHariIni = jadwalHariIni;
+          _beritaList = beritaResponse.data;
+
+          if (_beritaList.isNotEmpty) {
+            _pageController = PageController(viewportFraction: 0.9); 
+          } else {
+            _pageController?.dispose(); 
+            _pageController = null;
+          }
+           _currentBeritaIndex = 0; 
         });
       }
     } catch (e) {
-      print('Error loading dashboard data: $e');
       if (mounted) {
         setState(() {
           _errorMessage = 'Gagal memuat data: ${e.toString()}';
@@ -287,36 +303,238 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage> with Si
   }
 
   Widget _buildNewsSection() {
+    if (_isLoading && _beritaList.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20),
+        child: Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+             _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
+             const SizedBox(height: 12),
+            Center(child: CircularProgressIndicator(color: primaryBlue)),
+          ],
+        ),
+      );
+    }
+    if (!_isLoading && _beritaList.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text('Tidak ada berita terbaru', style: TextStyle(fontSize: 15, color: Colors.grey)),
+              ),
+            )
+          ],
+        ),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0), // Padding vertikal untuk section
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Berita Terbaru', Icons.newspaper_outlined),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
+          ),
           const SizedBox(height: 12),
           Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+            height: 200, // Sesuaikan tinggi PageView
+            child: Stack(
+              children: [
+                PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _currentBeritaIndex = index;
+                    });
+                  },
+                  // Ambil maksimal 5 berita atau semua jika kurang dari 5
+                  itemCount: _beritaList.length > 5 ? 5 : _beritaList.length, 
+                  itemBuilder: (context, index) {
+                    final berita = _beritaList[index];
+                    // Padding untuk setiap item di PageView agar tidak terlalu mepet
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0), // Jarak antar kartu berita
+                      child: _buildBeritaCard(berita),
+                    );
+                  },
                 ),
+                if (_beritaList.length > 1 && (_beritaList.length > 5 ? 5 : _beritaList.length) > 1) // Tampilkan indikator jika item lebih dari 1
+                  Positioned(
+                    bottom: 10, // Posisi indikator
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _beritaList.length > 5 ? 5 : _beritaList.length, // Jumlah indikator sesuai item yang ditampilkan
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: _currentBeritaIndex == index ? 12 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _currentBeritaIndex == index
+                                ? Colors.white // Warna indikator aktif
+                                : Colors.white.withOpacity(0.5), // Warna indikator tidak aktif
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
-            ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.all(Radius.circular(16)),
-              child: Image.asset(
-                'assets/images/pens.png',
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBeritaCard(Berita berita) {
+    final String formattedDate = DateFormat('d MMM yy', 'id_ID').format(berita.publishedAt);
+  
+    return GestureDetector(
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomLeft, // Ubah arah gradient untuk variasi
+            end: Alignment.topRight,
+            colors: [primaryBlue.withOpacity(0.95), secondaryBlue.withOpacity(0.85)],
+          ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+        child: Padding(
+        padding: const EdgeInsets.all(12.0), 
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), 
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    berita.targetRole?.toUpperCase() ?? 'UMUM',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9, // Font lebih kecil
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 11, 
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8), 
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, 
+                children: [
+                  Text(
+                    berita.judul ?? 'Tanpa Judul',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15, 
+                      fontWeight: FontWeight.bold,
+                      height: 1.25,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4), 
+                  Flexible(
+                    child: Text(
+                      berita.isi ?? '',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 12.5, 
+                        height: 1.35,
+                      ),
+                      maxLines: 3, 
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: TextButton(
+                onPressed: () {
+                  print('Baca Selengkapnya: ID ${berita.id}');
+                  Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MahasiswaBeritaDetailPage(
+                            beritaSlug: berita.slug,
+                            initialTitle: berita.judul,
+                          ),
+                        ),
+                      );
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.15),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), 
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  minimumSize: const Size(0, 28), 
+                ),
+                child: const Text(
+                  'Baca Selengkapnya',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11, 
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       ),
     );
   }

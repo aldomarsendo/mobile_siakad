@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'package:mobile_siakad/models/berita_model.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 
-class BeritaService {
+class DosenBeritaService {
   final AuthService _authService;
   final ApiClient _apiClient;
 
-  BeritaService(this._authService, this._apiClient);
+  DosenBeritaService(this._authService, this._apiClient);
 
   Future<BeritaResponse> getBerita({int page = 1}) async {
     try {
@@ -34,11 +33,11 @@ class BeritaService {
     }
   }
 
-  Future<Berita> getBeritaById(int id) async {
+  Future<Berita> getBeritaBySlug(String slug) async {
     try {
-      print('BeritaService - Fetching berita with ID: $id');
+      print('BeritaService - Fetching berita with slug: $slug');
       
-      final jsonResponse = await _apiClient.get('dosen/berita/$id');
+      final jsonResponse = await _apiClient.get('dosen/berita/$slug');
       
       print('BeritaService - API Response Detail: $jsonResponse');
       
@@ -70,13 +69,13 @@ class BeritaService {
       }
       
     } catch (e) {
-      print('Error in BeritaService.getBeritaById: $e');
+      print('Error in BeritaService.getBeritaBySlug: $e');
       
       // Handle specific error cases
       if (e.toString().contains('404') || 
           e.toString().contains('No query results') ||
           e.toString().contains('tidak ditemukan')) {
-        throw BeritaNotFoundException('Berita dengan ID $id tidak ditemukan atau telah dihapus.');
+        throw BeritaNotFoundException('Berita dengan slug $slug tidak ditemukan atau telah dihapus.');
       } else if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
         throw Exception('Sesi telah berakhir. Silakan login kembali.');
       } else if (e.toString().contains('403') || e.toString().contains('Forbidden')) {
@@ -92,9 +91,9 @@ class BeritaService {
   }
 
   // Enhanced method to validate if berita exists before navigation
-  Future<bool> checkBeritaExists(int id) async {
+  Future<bool> checkBeritaExists(String slug) async {
     try {
-      await getBeritaById(id);
+      await getBeritaBySlug(slug);
       return true;
     } catch (e) {
       if (e is BeritaNotFoundException) {
@@ -107,11 +106,11 @@ class BeritaService {
   }
 
   // Alternative method: Try to get berita from the cached list first
-  Future<Berita?> getBeritaFromList(int id) async {
+  Future<Berita?> getBeritaFromList(String slug) async {
     try {
       final response = await getBerita();
       return response.data.firstWhere(
-        (berita) => berita.id == id,
+        (berita) => berita.slug == slug,
         orElse: () => throw BeritaNotFoundException('Berita tidak ditemukan dalam daftar'),
       );
     } catch (e) {
@@ -120,14 +119,14 @@ class BeritaService {
   }
 
   // Hybrid method: Try to get from API first, fallback to list
-  Future<Berita> getBeritaByIdWithFallback(int id) async {
+  Future<Berita> getBeritaBySlugWithFallback(String slug) async {
     try {
       // First try the direct API call
-      return await getBeritaById(id);
+      return await getBeritaBySlug(slug);
     } catch (e) {
       if (e is BeritaNotFoundException) {
         // If not found via direct API, try to get from the list
-        final beritaFromList = await getBeritaFromList(id);
+        final beritaFromList = await getBeritaFromList(slug);
         if (beritaFromList != null) {
           return beritaFromList;
         }

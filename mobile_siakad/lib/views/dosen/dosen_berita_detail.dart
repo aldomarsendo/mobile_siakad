@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_siakad/models/berita_model.dart';
-import 'package:mobile_siakad/services/dosen/berita_service.dart';
+import 'package:mobile_siakad/services/dosen/dosen_berita_service.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/services/api_client.dart';
 import 'package:http/http.dart' as http;
 
-class BeritaDetailPage extends StatefulWidget {
-  final int beritaId;
+class DosenBeritaDetailPage extends StatefulWidget {
+  final String beritaId;
   final String? initialTitle;
 
-  const BeritaDetailPage({
+  const DosenBeritaDetailPage({
     super.key,
     required this.beritaId,
     this.initialTitle,
   });
 
   @override
-  State<BeritaDetailPage> createState() => _BeritaDetailPageState();
+  State<DosenBeritaDetailPage> createState() => _DosenBeritaDetailPageState();
 }
 
-class _BeritaDetailPageState extends State<BeritaDetailPage> {
+class _DosenBeritaDetailPageState extends State<DosenBeritaDetailPage> {
   final Color primaryBlue = const Color(0xFF133B7A);
   final Color secondaryBlue = const Color(0xFF1E5BB0);
 
@@ -28,7 +28,7 @@ class _BeritaDetailPageState extends State<BeritaDetailPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  late final BeritaService _beritaService;
+  late final DosenBeritaService _beritaService;
 
   @override
   void initState() {
@@ -36,7 +36,7 @@ class _BeritaDetailPageState extends State<BeritaDetailPage> {
     print('BeritaDetailPage initialized with ID: ${widget.beritaId}');
     final apiClient = ApiClient(http.Client());
     final authService = AuthService(apiClient);
-    _beritaService = BeritaService(authService, apiClient);
+    _beritaService = DosenBeritaService(authService, apiClient);
     _loadBeritaDetail();
   }
 
@@ -50,7 +50,7 @@ class _BeritaDetailPageState extends State<BeritaDetailPage> {
 
     try {
       print('Loading berita detail for ID: ${widget.beritaId}');
-      final berita = await _beritaService.getBeritaById(widget.beritaId);
+      final berita = await _beritaService.getBeritaBySlug(widget.beritaId);
       if (mounted) {
         setState(() {
           _berita = berita;

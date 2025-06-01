@@ -1,103 +1,79 @@
-import 'dart:convert'; 
-import 'package:mobile_siakad/models/mahasiswa_jadwal_model.dart'; 
-// Impor model tahun ajaran dari artifact yang sudah ada di Canvas
-import 'package:mobile_siakad/models/tahun_ajaran_model.dart'; 
+import 'package:mobile_siakad/models/matakuliah_model.dart'; 
 import 'package:mobile_siakad/services/api_client.dart';
-import 'package:mobile_siakad/services/auth_service.dart';
 
 class MahasiswaJadwalService {
-  final AuthService _authService; 
   final ApiClient _apiClient;
 
-  MahasiswaJadwalService(this._authService, this._apiClient);
+  MahasiswaJadwalService(this._apiClient);
 
-  /// Mengambil daftar tahun ajaran yang tersedia untuk mahasiswa.
-  /// GANTI 'mahasiswa/tahun-ajaran-list' dengan endpoint API Anda yang sebenarnya untuk mendapatkan daftar tahun ajaran.
-  /// Jika API Anda tidak memiliki endpoint khusus untuk ini, Anda mungkin perlu mendapatkan
-  /// tahun ajaran dari sumber lain atau menghardcode jika daftarnya statis.
-  Future<ApiTahunAjaranResponse> getListTahunAjaran() async {
+  Future<List<MataKuliah>> getJadwalLengkap({String? semester}) async { 
     try {
-      print('=== SERVICE (MahasiswaJadwalService - getListTahunAjaran): Mengambil data ===');
-      // PASTIKAN ENDPOINT INI BENAR DAN MENGEMBALIKAN LIST TAHUN AJARAN
-      // Contoh: 'mahasiswa/tahun-ajaran' atau 'general/tahun-ajaran'
-      const String endpoint = 'mahasiswa/list-tahun-ajaran'; // Ganti dengan endpoint yang benar
-      print('SERVICE: Endpoint getListTahunAjaran: $endpoint');
-
-      final dynamic responseData = await _apiClient.get(endpoint);
+      print('=== SERVICE (MahasiswaJadwalService - getJadwalLengkap): Mengambil data ===');
+      String endpoint = 'mahasiswa/jadwal'; 
       
-      Map<String, dynamic> jsonData;
-      if (responseData is String) {
-        jsonData = jsonDecode(responseData) as Map<String, dynamic>;
-      } else if (responseData is Map<String, dynamic>) {
-        jsonData = responseData;
-      } else {
-        print('SERVICE (getListTahunAjaran): Tipe data respons tidak dikenal: ${responseData.runtimeType}');
-        throw Exception('Tipe data respons tidak dikenal dari API tahun ajaran.');
+      if (semester != null && semester.isNotEmpty) {
+        endpoint += '?semester=${Uri.encodeQueryComponent(semester)}';
+      }
+      print('SERVICE: Endpoint getJadwalLengkap: $endpoint');
+
+      final data = await _apiClient.get(endpoint); 
+
+      if (data == null || data is! Map<String, dynamic> || data['jadwal'] == null || data['jadwal'] is! List) {
+        print('SERVICE (getJadwalLengkap): Struktur data API tidak sesuai. Key "jadwal" (atau "matakuliah") tidak ditemukan atau bukan list.');
+        print('SERVICE (getJadwalLengkap): Response mentah dari API: $data');
+        return [];
       }
       
-      // Pastikan key 'tahun_ajaran' (atau 'data') sesuai dengan respons API Anda
-      if (jsonData['tahun_ajaran'] == null && jsonData['data'] == null) {
-         print('SERVICE (getListTahunAjaran): Key "tahun_ajaran" atau "data" tidak ditemukan dalam respons.');
-         // Anda bisa mengembalikan list kosong atau melempar error spesifik
-         return ApiTahunAjaranResponse(tahunAjaranList: [], message: jsonData['message'] as String? ?? "Data tahun ajaran tidak ditemukan.");
-      }
+      final List<dynamic> jadwalListJson = data['jadwal'] as List<dynamic>; 
       
-      return ApiTahunAjaranResponse.fromJson(jsonData);
+      List<MataKuliah> hasilJadwal = jadwalListJson.map((json) {
+        try {
+          return MataKuliah.fromJson(json as Map<String, dynamic>);
+        } catch (e) {
+          print('SERVICE (getJadwalLengkap): Error parsing item Jadwal: $json, error: $e');
+          return null; 
+        }
+      }).whereType<MataKuliah>().toList(); 
+      
+      print('SERVICE (getJadwalLengkap): Total item jadwal setelah parsing: ${hasilJadwal.length}');
+      return hasilJadwal;
 
-    } catch (e, stackTrace) {
-      print('SERVICE (getListTahunAjaran): Terjadi kesalahan: ${e.toString()}');
-      print('SERVICE (getListTahunAjaran): StackTrace: $stackTrace');
-      throw Exception('Gagal mengambil daftar tahun ajaran: ${e.toString()}');
+    } catch (e) {
+      print('SERVICE (getJadwalLengkap): Terjadi kesalahan: ${e.toString()}');
+      throw Exception('Gagal mengambil data jadwal lengkap: ${e.toString()}');
     }
   }
 
-
-  /// Mengambil jadwal kuliah mahasiswa berdasarkan ID tahun ajaran.
-  /// Jika idTahunAjaran null, API diharapkan mengembalikan jadwal untuk tahun ajaran aktif.
-  Future<ApiMahasiswaJadwalResponse> getJadwalKuliahMahasiswa({String? idTahunAjaran}) async {
+  Future<List<MataKuliah>> getJadwalHariIni() async {
     try {
-      print('=== SERVICE (MahasiswaJadwalService - getJadwalKuliahMahasiswa): Mengambil data ===');
-      String endpoint = 'mahasiswa/jadwal'; 
-      if (idTahunAjaran != null && idTahunAjaran.isNotEmpty) {
-        // Sesuaikan nama parameter query jika berbeda, misal 'tahun_ajaran_id' atau 'id_ta'
-        // Berdasarkan model MahasiswaNilaiItem, API mungkin menggunakan 'tahun_ajaran_frs' atau sejenisnya
-        // Untuk jadwal, API Anda mungkin mengharapkan 'id_tahun_ajaran'
-        endpoint += '?id_tahun_ajaran=${Uri.encodeQueryComponent(idTahunAjaran)}'; 
-      }
-      print('SERVICE: Endpoint getJadwalKuliahMahasiswa: $endpoint');
+      print('=== SERVICE (MahasiswaJadwalService - getJadwalHariIni): Mengambil data ===');
+      const String endpoint = 'mahasiswa/dashboard/jadwal-hari-ini'; 
+      print('SERVICE: Endpoint getJadwalHariIni: $endpoint');
 
-      final dynamic responseData = await _apiClient.get(endpoint);
-      
-      Map<String, dynamic> jsonData;
-      if (responseData is String) {
-        jsonData = jsonDecode(responseData) as Map<String, dynamic>;
-      } else if (responseData is Map<String, dynamic>) {
-        jsonData = responseData;
+      final responseData = await _apiClient.get(endpoint);
+
+      if (responseData != null && responseData is Map<String, dynamic> && responseData['jadwal_hari_ini'] != null && responseData['jadwal_hari_ini'] is List) {
+        final List<dynamic> jadwalJsonList = responseData['jadwal_hari_ini'] as List<dynamic>;
+        
+        List<MataKuliah> jadwalHariIni = jadwalJsonList.map((json) {
+          try {
+            return MataKuliah.fromJson(json as Map<String, dynamic>);
+          } catch(e) {
+            print('SERVICE (getJadwalHariIni): Error parsing item jadwal hari ini: $json, error: $e');
+            return null; 
+          }
+        }).whereType<MataKuliah>().toList(); 
+
+        print('SERVICE (getJadwalHariIni): Total jadwal hari ini setelah parsing: ${jadwalHariIni.length}');
+        return jadwalHariIni;
       } else {
-        print('SERVICE (getJadwalKuliahMahasiswa): Tipe data respons tidak dikenal: ${responseData.runtimeType}');
-        throw Exception('Tipe data respons tidak dikenal dari API jadwal.');
+        print('SERVICE (getJadwalHariIni): Struktur data API tidak sesuai. Key "jadwal_hari_ini" tidak ditemukan atau bukan list.');
+        print('SERVICE (getJadwalHariIni): Response mentah dari API: $responseData');
+        return [];
       }
-
-      // Validasi apakah key 'jadwal' ada dan merupakan Map
-      if (jsonData['jadwal'] == null || jsonData['jadwal'] is! Map<String, dynamic>) {
-        print('SERVICE (getJadwalKuliahMahasiswa): Struktur data API tidak sesuai. Key "jadwal" tidak ditemukan atau bukan Map.');
-        print('SERVICE (getJadwalKuliahMahasiswa): Response mentah dari API: $jsonData');
-        return ApiMahasiswaJadwalResponse(
-          jadwal: {}, 
-          message: jsonData['message'] as String? ?? 'Struktur data jadwal tidak sesuai dari API.'
-        );
-      }
-      
-      final ApiMahasiswaJadwalResponse jadwalResponse = ApiMahasiswaJadwalResponse.fromJson(jsonData);
-      
-      print('SERVICE (getJadwalKuliahMahasiswa): Pesan dari API: ${jadwalResponse.message}');
-      print('SERVICE (getJadwalKuliahMahasiswa): Jumlah hari dengan jadwal setelah parsing: ${jadwalResponse.jadwal.keys.length}');
-      return jadwalResponse;
-
-    } catch (e, stackTrace) { 
-      print('SERVICE (getJadwalKuliahMahasiswa): Terjadi kesalahan: ${e.toString()}');
-      print('SERVICE (getJadwalKuliahMahasiswa): StackTrace: $stackTrace');
-      throw Exception('Gagal mengambil data jadwal kuliah mahasiswa: ${e.toString()}');
+    } catch (e) {
+      print('SERVICE (getJadwalHariIni): Terjadi kesalahan: ${e.toString()}');
+      throw Exception('Gagal mengambil jadwal hari ini: ${e.toString()}');
     }
   }
 }

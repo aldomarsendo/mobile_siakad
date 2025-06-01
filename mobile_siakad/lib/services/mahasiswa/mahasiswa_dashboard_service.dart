@@ -1,6 +1,4 @@
-import 'dart:convert';
 import '../api_client.dart'; 
-// Menggunakan MahasiswaJadwalItem dari model yang Anda berikan
 import '../../models/mahasiswa_jadwal_model.dart'; 
 
 class MahasiswaDashboardService {
@@ -8,8 +6,6 @@ class MahasiswaDashboardService {
 
   MahasiswaDashboardService({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  /// Mengambil jadwal kuliah mahasiswa untuk hari ini.
-  /// Endpoint: GET mobile/mahasiswa/dashboard/jadwal-hari-ini
   Future<List<MahasiswaJadwalItem>> getJadwalHariIni() async {
     try {
       print('=== SERVICE (MahasiswaDashboardService - getJadwalHariIni): Mengambil data ===');
