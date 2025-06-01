@@ -34,7 +34,7 @@ class MahasiswaProfileService {
     required String newPasswordConfirmation,
   }) async {
     try {
-      const String endpoint = 'mahasiswa/password'; 
+      const String endpoint = 'mahasiswa/profile'; 
       final Map<String, dynamic> body = {
         'current_password': currentPassword,
         'password': newPassword,
