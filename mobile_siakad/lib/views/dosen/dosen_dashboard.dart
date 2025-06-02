@@ -30,6 +30,10 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
   final Color secondaryBlue = const Color(0xFF1E5BB0);
   final PageController _pageController = PageController();
 
+  // Warna-warna ini tidak lagi didefinisikan di sini,
+  // karena kita kembali ke skema warna asli dari "Design 4 - Filled Tonal Card"
+  // yang menggunakan variasi dari primaryBlue.
+
   User? _currentUser;
   Dosen? _dosenProfile;
   List<MataKuliah> _jadwalHariIni = [];
@@ -101,7 +105,9 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
       final List<MataKuliah> semuaMataKuliah = results[2] as List<MataKuliah>;
       final BeritaResponse beritaResponse = results[3] as BeritaResponse;
       
-      final String hariIniString = DateFormat('EEEE', 'id_ID').format(DateTime.now());
+      final now = DateTime.now();
+      final String hariIniString = DateFormat('EEEE', 'id_ID').format(now);
+
       final List<MataKuliah> filteredJadwal = semuaMataKuliah
           .where((mk) => mk.hari.toLowerCase() == hariIniString.toLowerCase())
           .toList();
@@ -234,7 +240,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                       CircleAvatar(
+                      CircleAvatar(
                         backgroundImage: NetworkImage('https://st3.depositphotos.com/6672868/13701/v/450/depositphotos_137014128-stock-illustration-user-profile-icon.jpg'),
                         backgroundColor: Colors.white.withOpacity(0.5),
                       ),
@@ -268,7 +274,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
                 context,
                 MaterialPageRoute(builder: (context) => const DosenProfilPage()),
               ).then((_) {
-                 _loadInitialData(isRefresh: true);
+                _loadInitialData(isRefresh: true);
               });
             },
           ),
@@ -299,242 +305,244 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     );
   }
 
-  Widget _buildNewsSection() {
-    if (_isLoading && _beritaList.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20),
-        child: Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-             _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
-             const SizedBox(height: 12),
-            Center(child: CircularProgressIndicator(color: primaryBlue)),
-          ],
-        ),
-      );
-    }
-    if (!_isLoading && _beritaList.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Text('Tidak ada berita terbaru', style: TextStyle(fontSize: 15, color: Colors.grey)),
-              ),
-            )
-          ],
-        ),
-      );
-    }
-
+Widget _buildNewsSection() {
+  if (_isLoading && _beritaList.isEmpty) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0), // Padding vertikal untuk section
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildSectionHeader('Berita & Pengumuman', Icons.newspaper_outlined),
-          ),
+          _buildSectionHeader('Berita & Pengumuman', Icons.article_outlined),
+          const SizedBox(height: 12),
+          Center(child: CircularProgressIndicator(color: primaryBlue)),
+        ],
+      ),
+    );
+  }
+  if (!_isLoading && _beritaList.isEmpty) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Berita & Pengumuman', Icons.article_outlined),
           const SizedBox(height: 12),
           Container(
-            height: 200, // Sesuaikan tinggi PageView
-            child: Stack(
-              children: [
-                PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentBeritaIndex = index;
-                    });
-                  },
-                  // Ambil maksimal 5 berita atau semua jika kurang dari 5
-                  itemCount: _beritaList.length > 5 ? 5 : _beritaList.length, 
-                  itemBuilder: (context, index) {
-                    final berita = _beritaList[index];
-                    // Padding untuk setiap item di PageView agar tidak terlalu mepet
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0), // Jarak antar kartu berita
-                      child: _buildBeritaCard(berita),
-                    );
-                  },
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white, 
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
                 ),
-                if (_beritaList.length > 1 && (_beritaList.length > 5 ? 5 : _beritaList.length) > 1) // Tampilkan indikator jika item lebih dari 1
-                  Positioned(
-                    bottom: 10, // Posisi indikator
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _beritaList.length > 5 ? 5 : _beritaList.length, // Jumlah indikator sesuai item yang ditampilkan
-                        (index) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: _currentBeritaIndex == index ? 12 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _currentBeritaIndex == index
-                                ? Colors.white // Warna indikator aktif
-                                : Colors.white.withOpacity(0.5), // Warna indikator tidak aktif
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
-          ),
+            child: const Center(
+              child: Text('Tidak ada berita terbaru', style: TextStyle(fontSize: 15, color: Colors.grey)),
+            ),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildBeritaCard(Berita berita) {
-    final String formattedDate = DateFormat('d MMM yyyy', 'id_ID').format(berita.publishedAt);
-    
-    return GestureDetector(
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomLeft, // Ubah arah gradient untuk variasi
-            end: Alignment.topRight,
-            colors: [primaryBlue.withOpacity(0.95), secondaryBlue.withOpacity(0.85)],
+  final int itemCount = _beritaList.length > 5 ? 5 : _beritaList.length;
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0), 
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: _buildSectionHeader('Berita & Pengumuman', Icons.article_outlined),
+        ),
+        const SizedBox(height: 12),
+        Stack( // Menggunakan Stack untuk menempatkan indikator di atas PageView
+          children: [
+            Container(
+              height: 200, // Tinggi section berita yang sudah disesuaikan sebelumnya
+              child: PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentBeritaIndex = index;
+                  });
+                },
+                itemCount: itemCount, 
+                itemBuilder: (context, index) {
+                  final berita = _beritaList[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0), 
+                    child: _buildBeritaCard(berita),
+                  );
+                },
+              ),
+            ),
+            if (itemCount > 1)
+              Positioned(
+                bottom: 12.0, // Jarak indikator dari bawah
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    itemCount, 
+                    (index) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentBeritaIndex == index ? 12 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _currentBeritaIndex == index
+                            ? primaryBlue 
+                            : primaryBlue.withOpacity(0.4), 
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+// Mengembalikan _buildBeritaCard ke versi "Design 4 - Filled Tonal Card"
+// dengan maxLines: 2 untuk isi berita
+Widget _buildBeritaCard(Berita berita) {
+  final String formattedDate = DateFormat('d MMM yy', 'id_ID').format(berita.publishedAt.toLocal()); 
+  
+  return GestureDetector(
+    onTap: () {
+      print('Baca Selengkapnya: ID ${berita.slug}');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DosenBeritaDetailPage(
+            beritaId: berita.slug,
+            initialTitle: berita.judul,
           ),
-        borderRadius: BorderRadius.circular(16),
+        ),
+      );
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        color: primaryBlue.withOpacity(0.08), // Warna background tonal asli
+        borderRadius: BorderRadius.circular(16.0), 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+            color: primaryBlue.withOpacity(0.05), // Shadow asli
+            blurRadius: 10,
+            offset: const Offset(0, 4), // Bisa juga (0,5) seperti di awal
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(10),
+                    color: primaryBlue.withOpacity(0.15), // Warna chip asli
+                    borderRadius: BorderRadius.circular(20), 
                   ),
                   child: Text(
                     berita.targetRole?.toUpperCase() ?? 'UMUM',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9, // Font lebih kecil
-                      fontWeight: FontWeight.w600,
+                    style: TextStyle(
+                      color: primaryBlue, // Warna teks chip asli
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 Text(
                   formattedDate,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
+                    color: primaryBlue.withOpacity(0.9), // Warna tanggal asli
                     fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-
+            const SizedBox(height: 10),
+            Text(
+              berita.judul ?? 'Tanpa Judul',
+              style: TextStyle(
+                color: Color(0xFF0A2A57), // Warna judul asli (atau primaryBlue)
+                fontSize: 15.5, 
+                fontWeight: FontWeight.bold, 
+                height: 1.3,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6), 
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min, 
-                children: [
-                  Text(
-                    berita.judul ?? 'Tanpa Judul',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15, 
-                      fontWeight: FontWeight.bold,
-                      height: 1.25,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4), 
-                  Flexible(
-                    child: Text(
-                      berita.isi ?? '',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 12.5, 
-                        height: 1.35,
-                      ),
-                      maxLines: 3, 
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+              child: Text(
+                berita.isi ?? '',
+                style: TextStyle(
+                  color: Colors.black.withOpacity(0.75), // Warna isi asli
+                  fontSize: 13, 
+                  height: 1.4,
+                ),
+                maxLines: 2, // Dipertahankan 2 baris untuk mencegah overflow
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-                Align(
+            const SizedBox(height: 8), // Spasi sebelum tombol "Selengkapnya"
+            Align(
               alignment: Alignment.bottomRight,
-              child: TextButton(
-                onPressed: () {
-                  print('Baca Selengkapnya: ID ${berita.slug}');
-                  Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DosenBeritaDetailPage(
-                            beritaId: berita.slug,
-                            initialTitle: berita.judul,
-                          ),
-                        ),
-                      );
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.15),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), 
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  minimumSize: const Size(0, 28), 
-                ),
-                child: const Text(
-                  'Baca Selengkapnya',
+              child: TextButton.icon(
+                icon: Icon(Icons.arrow_forward_ios, size: 11, color: primaryBlue),
+                label: Text(
+                  'Selengkapnya',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11, 
-                    fontWeight: FontWeight.w600,
+                    color: primaryBlue, // Warna tombol asli
+                    fontSize: 12, 
+                    fontWeight: FontWeight.w600, 
                   ),
                 ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal:10, vertical: 5),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                ),
+                onPressed: () {
+                  print('Baca Selengkapnya (from button): ID ${berita.slug}');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DosenBeritaDetailPage(
+                        beritaId: berita.slug,
+                        initialTitle: berita.judul,
+                      ),
+                    ),
+                  );
+                },
               ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      )
-    );
-  }
+      ),
+    )
+  );
+}
+
 
   Widget _buildAcademicMenu() {
     return Padding(
@@ -572,8 +580,9 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
   }
 
   Widget _buildTodaySchedule() {
-    String tanggalHariIniText = DateFormat('d MMMM yyyy', 'id_ID').format(DateTime.now());
-    String namaHariIniText = DateFormat('EEEE', 'id_ID').format(DateTime.now());
+    final now = DateTime.now();
+    final String tanggalHariIniText = DateFormat('d MMMM finalList', 'id_ID').format(now.toLocal());
+    final String namaHariIniText = DateFormat('EEEE', 'id_ID').format(now.toLocal());
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -596,7 +605,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
             ),
           ),
           const SizedBox(height: 8),
-           Text(
+          Text(
             '$namaHariIniText, $tanggalHariIniText · ${_jadwalHariIni.length} MATA KULIAH', 
             style: TextStyle(
               fontSize: 12,
@@ -623,10 +632,11 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
               itemBuilder: (context, index) {
                 final mk = _jadwalHariIni[index];
                 return _classCard(
-                    mk.jamMulai.substring(0,5), 
-                    mk.jamSelesai.substring(0,5), 
-                    mk.namaMk, 
-                    mk.ruang.namaRuang);
+                  mk.jamMulai.substring(0,5), 
+                  mk.jamSelesai.substring(0,5), 
+                  mk.namaMk, 
+                  mk.ruang.namaRuang,
+                );
               },
             ),
         ],
@@ -684,7 +694,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
     );
   }
 
-  Widget _classCard(String start, String end, String subject, String room) {
+  Widget _classCard(String start, String end, String subject, String room, {String? kodeMk, String? dosenPengampu}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       width: double.infinity,
@@ -707,14 +717,36 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "$start → $end", 
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "$start → $end",
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (kodeMk != null && kodeMk.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    kodeMk,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8), 
           Text(
             subject, 
             style: const TextStyle(
@@ -729,7 +761,7 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
               const Icon(Icons.location_on, color: Colors.white70, size: 16),
               const SizedBox(width: 4),
               Text(
-                room, 
+                room.isNotEmpty ? room : 'N/A', 
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
@@ -737,6 +769,26 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
               ),
             ],
           ),
+          if (dosenPengampu != null && dosenPengampu.isNotEmpty && dosenPengampu.toLowerCase() != 'n/a')
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  const Icon(Icons.person, color: Colors.white70, size: 16),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      dosenPengampu,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -793,11 +845,11 @@ class _DosenDashboardPageState extends State<DosenDashboardPage> with SingleTick
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const SizedBox(height: 0),
-                                  _buildNewsSection(),
+                                  _buildNewsSection(), 
                                   const SizedBox(height: 24),
                                   _buildAcademicMenu(),
                                   const SizedBox(height: 24),
-                                  _buildTodaySchedule(),
+                                  _buildTodaySchedule(), 
                                   const SizedBox(height: 20),
                                 ],
                               ),

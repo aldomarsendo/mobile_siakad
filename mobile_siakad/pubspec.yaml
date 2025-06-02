@@ -18,6 +18,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: "^0.14.3"
+  package_rename: ^1.10.0
 
 flutter:
   uses-material-design: true
@@ -33,3 +35,27 @@ flutter:
   #       - asset: assets/fonts/Ubuntu-Regular.ttf
   #       - asset: assets/fonts/Ubuntu-Bold.ttf
 
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/LogoSikad.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/images/LogoSikad.png"
+    background_color: "#hexcode"
+    theme_color: "#hexcode"
+  windows:
+    generate: true
+    image_path: "assets/images/LogoSikad.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/images/LogoSikad.png"
+
+package_rename_config:
+  android:
+    app_name: Siakad PENS # (String) The display name of the android app
+    package_name: # (String) The package name of the android app
+    override_old_package: # (Optional) (String) Use this to delete the old folder structure of MainActivity or to use the existing code with the new package name
+    lang: # (Optional) (String) The android development language {kotlin(default) or java}

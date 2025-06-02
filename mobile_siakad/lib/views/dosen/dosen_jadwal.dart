@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:mobile_siakad/models/matakuliah_model.dart';
 import 'package:mobile_siakad/services/auth_service.dart';
 import 'package:mobile_siakad/services/dosen/dosen_jadwal_service.dart';
@@ -25,7 +26,7 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
 
   // Palet Warna Akademik
   final Color primaryBlue = const Color(0xFF133B7A); 
-  final Color secondaryBlue = const Color(0xFF1E5BB0); // Untuk gradien Kartu Ringkasan
+  final Color secondaryBlue = const Color(0xFF1E5BB0); 
 
   final Color textOnLightBg = Colors.black87; 
   final Color subtleTextOnLightBg = Colors.grey.shade700; 
@@ -52,15 +53,16 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
     _loadAllMataKuliah();
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: Curves.easeOut,
+        curve: Curves.easeInOut,
       ),
     );
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _animationController.forward();
@@ -121,7 +123,6 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
   }
 
   Widget _buildSummaryCardDosen() {
-    // Kartu ringkasan tetap menggunakan gradien primaryBlue & secondaryBlue
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 20.0),
@@ -161,7 +162,7 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
           ),
           const SizedBox(height: 8),
           Text(
-            'Data Keseluruhan',
+            'Semester Genap 2024/2025',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 14,
@@ -172,17 +173,17 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
     );
   }
 
-  Widget _buildSectionListHeader(String title, IconData icon) {
+  Widget _buildSectionHeader(String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0, top: 8.0),
       child: Row(
         children: [
-          Icon(icon, color: primaryBlue, size: 22),
-          const SizedBox(width: 10),
+          Icon(icon, color: primaryBlue, size: 20),
+          const SizedBox(width: 8),
           Text(
             title,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: primaryBlue,
             ),
@@ -192,116 +193,110 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
     );
   }
 
+  // UPDATED: Schedule slot that matches dashboard card style
   Widget _buildScheduleSlot(MataKuliah mk, int slotNumber) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      elevation: 2.0, 
-      shadowColor: cardShadowColor, 
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0),
-      ),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
-        child: Row(
-          children: [
-            Container(
-              width: 75,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    mk.jamMulai.substring(0, 5),
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: primaryBlue,
-                    ),
-                  ),
-                  Container(
-                    height: 10,
-                    width: 1.2, 
-                    color: dividerColor, 
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                  ),
-                  Text(
-                    mk.jamSelesai.substring(0, 5),
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: subtleTextOnLightBg, 
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            VerticalDivider(width: 1, thickness: 1, color: dividerColor.withOpacity(0.5), indent: 8, endIndent: 8),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          mk.namaMk,
-                          style: TextStyle(
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.bold,
-                            color: textOnLightBg,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: primaryBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '$slotNumber',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: primaryBlue,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildInfoRow(Icons.location_on_outlined, mk.ruang.namaRuang),
-                  _buildInfoRow(Icons.class_outlined, mk.kelas.namaKelas),
-                ],
-              ),
-            ),
-          ],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [primaryBlue, secondaryBlue],
         ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 5.0),
-      child: Row(
-        children: [
-          Icon(icon, size: 15, color: iconColorOnLightBg),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 13.5, color: subtleTextOnLightBg),
-              overflow: TextOverflow.ellipsis,
-            ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Detail untuk ${mk.namaMk}')),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "${mk.jamMulai.substring(0, 5)} → ${mk.jamSelesai.substring(0, 5)}",
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        mk.kodeMk ?? '#$slotNumber',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  mk.namaMk,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.white70, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      mk.ruang.namaRuang,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.people, color: Colors.white70, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      mk.kelas.namaKelas,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -311,22 +306,72 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
       return const SizedBox.shrink();
     }
 
+    String formattedDate = '';
+    try {
+      // Find a date in this year that falls on the given day of week
+      final now = DateTime.now();
+      final firstDayOfYear = DateTime(now.year, 1, 1);
+      final daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+      final dayIndex = daysOfWeek.indexOf(day);
+      
+      if (dayIndex != -1) {
+        // Find the next occurrence of this day from first day of year
+        int daysUntil = (dayIndex + 1 - firstDayOfYear.weekday) % 7;
+        if (daysUntil == 0) daysUntil = 7;
+        final date = firstDayOfYear.add(Duration(days: daysUntil));
+        formattedDate = DateFormat('d MMMM', 'id_ID').format(date);
+      }
+    } catch (e) {
+      // Fallback if date formatting fails
+      formattedDate = '';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 20.0, bottom: 4.0),
-          child: Text(
-            day,
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w600,
-              color: textOnLightBg,
-            ),
+          child: Row(
+            children: [
+              Text(
+                day,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: primaryBlue,
+                ),
+              ),
+              if (formattedDate.isNotEmpty) ...[
+                Text(
+                  ' · ',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  formattedDate,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+              const Spacer(),
+              Text(
+                "${jadwalForDay.length} MATA KULIAH",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
           ),
         ),
-        Divider(color: dividerColor, height: 12, thickness: 0.8),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         ListView.builder(
           itemCount: jadwalForDay.length,
           shrinkWrap: true,
@@ -350,59 +395,64 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         leading: const BackButton(color: Colors.white),
-        backgroundColor: primaryBlue, // AppBar menggunakan warna solid primaryBlue
-        elevation: 1.0, // Bisa ditambahkan sedikit elevasi jika diinginkan
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [primaryBlue, secondaryBlue],
+            ),
+          ),
+        ),
+        elevation: 0,
         title: const Text(
           'Jadwal Mengajar',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: RefreshIndicator(
-          onRefresh: _loadAllMataKuliah,
-          color: primaryBlue,
-          child: _isLoading && _allMataKuliah.isEmpty
-              ? Center(child: CircularProgressIndicator(color: primaryBlue))
-              : _errorMessage != null
-                  ? _buildErrorWidget()
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                             children: [
-                              if (!_isLoading) _buildSummaryCardDosen(),
-                              if (!_isLoading && _errorMessage == null && _allMataKuliah.isNotEmpty)
-                                _buildSectionListHeader('Daftar Jadwal Mengajar', Icons.event_note_outlined),
-                             ]
-                          ),
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: RefreshIndicator(
+            onRefresh: _loadAllMataKuliah,
+            color: primaryBlue,
+            child: _isLoading && _allMataKuliah.isEmpty
+                ? Center(child: CircularProgressIndicator(color: primaryBlue))
+                : _errorMessage != null
+                    ? _buildErrorWidget()
+                    : SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
                         ),
-                        Expanded(
-                          child: _allMataKuliah.isEmpty && !_isLoading
-                              ? _buildEmptyScheduleWidget()
-                              : ListView.builder(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                  itemCount: activeDaysWithSchedule.length,
-                                  itemBuilder: (context, index) {
-                                    final day = activeDaysWithSchedule[index];
-                                    final mataKuliahListForDay = _groupedJadwalByDay[day]!;
-                                    return _buildDayScheduleSection(day, mataKuliahListForDay);
-                                  },
-                                ),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (!_isLoading) _buildSummaryCardDosen(),
+                            
+                            if (!_isLoading && _errorMessage == null && _allMataKuliah.isNotEmpty)
+                              _buildSectionHeader('Jadwal Mengajar Per Hari', Icons.event_note_outlined),
+                            
+                            if (_allMataKuliah.isEmpty && !_isLoading)
+                              _buildEmptyScheduleWidget()
+                            else
+                              ...activeDaysWithSchedule.map((day) {
+                                final mataKuliahListForDay = _groupedJadwalByDay[day]!;
+                                return _buildDayScheduleSection(day, mataKuliahListForDay);
+                              }).toList(),
+                              
+                            const SizedBox(height: 20),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+          ),
         ),
       ),
     );
   }
 
- Widget _buildErrorWidget() {
-    // ... (kode _buildErrorWidget tetap sama)
+  Widget _buildErrorWidget() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -440,7 +490,6 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
   }
 
   Widget _buildEmptyScheduleWidget() {
-    // ... (kode _buildEmptyScheduleWidget tetap sama)
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -461,6 +510,7 @@ class _DosenJadwalPageState extends State<DosenJadwalPage> with SingleTickerProv
             ),
           ],
         ),
-      ));
+      )
+    );
   }
 }
