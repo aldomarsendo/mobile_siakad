@@ -624,7 +624,7 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage>
 
   Widget _buildTodaySchedule() {
     String tanggalHariIniText =
-        DateFormat('d MMMM finalList', 'id_ID').format(DateTime.now());
+        DateFormat('d MMMM yyyy', 'id_ID').format(DateTime.now());
     String namaHariIniText =
         DateFormat('EEEE', 'id_ID').format(DateTime.now());
 

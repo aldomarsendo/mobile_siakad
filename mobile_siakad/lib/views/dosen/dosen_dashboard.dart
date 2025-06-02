@@ -581,7 +581,7 @@ Widget _buildBeritaCard(Berita berita) {
 
   Widget _buildTodaySchedule() {
     final now = DateTime.now();
-    final String tanggalHariIniText = DateFormat('d MMMM finalList', 'id_ID').format(now.toLocal());
+    final String tanggalHariIniText = DateFormat('d MMMM yyyy', 'id_ID').format(now.toLocal());
     final String namaHariIniText = DateFormat('EEEE', 'id_ID').format(now.toLocal());
 
     return Padding(

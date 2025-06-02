@@ -136,7 +136,7 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
             // Jika API getAvailableMatakuliah mengembalikan info TA/Semester global, gunakan itu.
             // Jika tidak, ini akan menjadi placeholder.
             // Anda mungkin perlu endpoint API khusus untuk info TA/Semester aktif.
-            _tahunAjaranAktif = "TA Aktif"; // Placeholder
+            _tahunAjaranAktif = "2024/2025"; // Placeholder
             _semesterAktifDisplay = availableMkResponse.matakuliah.first.semesterPelaksanaan ?? "N/A"; 
           } else {
             _tahunAjaranAktif = "N/A";
