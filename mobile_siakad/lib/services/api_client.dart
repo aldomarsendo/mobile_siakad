@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
-const String baseUrl = 'https://siakad.pradita.my.id/api/mobile';
+const String baseUrl = 'https://sistem-akademik.pradita.my.id/api/mobile';
 
 class ApiClient {
   final http.Client _client;

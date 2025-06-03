@@ -80,71 +80,107 @@ class _MahasiswaDashboardPageState extends State<MahasiswaDashboardPage>
   }
 
   Future<void> _loadInitialData({bool isRefresh = false}) async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      if (!isRefresh) _errorMessage = null;
-    });
+  if (!mounted) return;
+  setState(() {
+    _isLoading = true;
+    if (!isRefresh) _errorMessage = null;
+  });
 
+  try {
+    print('[MahasiswaDashboardPage] Memulai memuat data...');
+    
+    // Memuat data satu per satu dengan error handling terpisah
+    User? user;
+    MahasiswaProfile? mahasiswaProfile;
+    List<MahasiswaJadwalItem> jadwalHariIni = [];
+    BeritaResponse? beritaResponse;
+
+    // 1. Load User Data
     try {
-      final userFuture = _authService.getCurrentUser();
-      final mahasiswaProfileFuture = _profileService.getProfile();
-      final jadwalHariIniFuture = _dashboardService.getJadwalHariIni();
-      final beritaFuture = _beritaService.getBerita();
-
-      final results = await Future.wait([
-        userFuture,
-        mahasiswaProfileFuture,
-        jadwalHariIniFuture,
-        beritaFuture,
-      ]);
-
-      final User? user = results[0] as User?;
-      final MahasiswaProfile? mahasiswaProfile =
-          results[1] as MahasiswaProfile?;
-      final List<MahasiswaJadwalItem> jadwalHariIni =
-          results[2] as List<MahasiswaJadwalItem>;
-      final BeritaResponse beritaResponse = results[3] as BeritaResponse;
-      
-      // DEBUG Log
-      print('[MahasiswaDashboardPage] Berita diterima: ${beritaResponse.data.length}');
-
-      if (mounted) {
-        setState(() {
-          _currentUser = user;
-          _mahasiswaProfile = mahasiswaProfile;
-          _jadwalHariIni = jadwalHariIni;
-          _beritaList = beritaResponse.data;
-
-          if (_beritaList.isNotEmpty) {
-            // MODIFIED: Initialize PageController like in dosen_dashboard.dart for full-width cards
-            if (_pageController == null || isRefresh) {
-              _pageController?.dispose();
-              _pageController = PageController(); // No viewportFraction
-            }
-          } else {
-            _pageController?.dispose();
-            _pageController = null;
-          }
-          _currentBeritaIndex = 0;
-        });
-      }
+      print('[MahasiswaDashboardPage] Memuat data user...');
+      user = await _authService.getCurrentUser();
+      print('[MahasiswaDashboardPage] User berhasil dimuat: ${user?.name ?? 'null'}');
     } catch (e) {
-      print('[MahasiswaDashboardPage] Error di _loadInitialData: $e');
-      if (mounted) {
-        setState(() {
-          _errorMessage =
-              'Gagal memuat data: ${e.toString().replaceFirst("Exception: ", "")}';
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      print('[MahasiswaDashboardPage] Error memuat user: $e');
+      // User data critical, rethrow
+      throw Exception('Gagal memuat data pengguna: ${e.toString().replaceFirst("Exception: ", "")}');
+    }
+
+    // 2. Load Mahasiswa Profile
+    try {
+      print('[MahasiswaDashboardPage] Memuat profil mahasiswa...');
+      mahasiswaProfile = await _profileService.getProfile();
+      print('[MahasiswaDashboardPage] Profil mahasiswa berhasil dimuat: ${mahasiswaProfile?.nrp ?? 'null'}');
+    } catch (e) {
+      print('[MahasiswaDashboardPage] Error memuat profil mahasiswa: $e');
+      // Profile critical, rethrow
+      throw Exception('Gagal memuat profil mahasiswa: ${e.toString().replaceFirst("Exception: ", "")}');
+    }
+
+    // 3. Load Jadwal Hari Ini
+    try {
+      print('[MahasiswaDashboardPage] Memuat jadwal hari ini...');
+      jadwalHariIni = await _dashboardService.getJadwalHariIni();
+      print('[MahasiswaDashboardPage] Jadwal hari ini berhasil dimuat: ${jadwalHariIni.length} jadwal');
+    } catch (e) {
+      print('[MahasiswaDashboardPage] Error memuat jadwal hari ini: $e');
+      // Jadwal tidak kritis, lanjutkan dengan list kosong
+      jadwalHariIni = [];
+      print('[MahasiswaDashboardPage] Menggunakan jadwal kosong karena error');
+    }
+
+    // 4. Load Berita
+    try {
+      print('[MahasiswaDashboardPage] Memuat berita...');
+      beritaResponse = await _beritaService.getBerita();
+      print('[MahasiswaDashboardPage] Berita berhasil dimuat: ${beritaResponse?.data.length ?? 0} berita');
+    } catch (e) {
+      print('[MahasiswaDashboardPage] Error memuat berita: $e');
+      // Berita tidak kritis, lanjutkan dengan data kosong
+      beritaResponse = null;
+      print('[MahasiswaDashboardPage] Menggunakan berita kosong karena error');
+    }
+
+    // Update UI jika widget masih mounted
+    if (mounted) {
+      setState(() {
+        _currentUser = user;
+        _mahasiswaProfile = mahasiswaProfile;
+        _jadwalHariIni = jadwalHariIni;
+        _beritaList = beritaResponse?.data ?? [];
+
+        // Handle PageController untuk berita
+        if (_beritaList.isNotEmpty) {
+          if (_pageController == null || isRefresh) {
+            _pageController?.dispose();
+            _pageController = PageController();
+          }
+        } else {
+          _pageController?.dispose();
+          _pageController = null;
+        }
+        _currentBeritaIndex = 0;
+      });
+      
+      print('[MahasiswaDashboardPage] Data berhasil dimuat dan UI diupdate');
+    }
+
+  } catch (e) {
+    print('[MahasiswaDashboardPage] Error kritis di _loadInitialData: $e');
+    if (mounted) {
+      setState(() {
+        _errorMessage = 'Gagal memuat data: ${e.toString().replaceFirst("Exception: ", "")}';
+      });
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('[MahasiswaDashboardPage] Loading selesai');
     }
   }
+}
 
   Future<void> _handleLogout() async {
     try {

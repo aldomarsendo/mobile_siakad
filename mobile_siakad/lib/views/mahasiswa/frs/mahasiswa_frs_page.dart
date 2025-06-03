@@ -16,7 +16,6 @@ import 'package:mobile_siakad/views/mahasiswa/frs/frs_summary_card.dart';
 import 'package:mobile_siakad/views/mahasiswa/frs/frs_student_details_card.dart';
 import 'package:mobile_siakad/views/mahasiswa/frs/frs_add_course_section.dart';
 import 'package:mobile_siakad/views/mahasiswa/frs/frs_course_table.dart';
-// import 'widgets/frs_semester_selector.dart'; // Jika akan digunakan
 
 class MahasiswaFrsPage extends StatefulWidget {
   const MahasiswaFrsPage({Key? key}) : super(key: key);
@@ -36,7 +35,7 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
 
   bool _isLoadingMyFrs = true;
   bool _isLoadingAvailableMk = true;
-  bool _isSubmitting = false; // Untuk loading saat add/delete
+  bool _isSubmitting = false;
   String? _errorMessage;
 
   // Data mahasiswa & TA - Placeholder, idealnya dari API Profile 
@@ -133,10 +132,7 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
             _tahunAjaranAktif = _matakuliahDiambil.first.tahunAjaranFrs ?? "N/A";
             _semesterAktifDisplay = _matakuliahDiambil.first.jadwalKuliah?.semesterPelaksanaan ?? "N/A";
           } else if (availableMkResponse.matakuliah.isNotEmpty) {
-            // Jika API getAvailableMatakuliah mengembalikan info TA/Semester global, gunakan itu.
-            // Jika tidak, ini akan menjadi placeholder.
-            // Anda mungkin perlu endpoint API khusus untuk info TA/Semester aktif.
-            _tahunAjaranAktif = "2024/2025"; // Placeholder
+            _tahunAjaranAktif = "2024/2025";
             _semesterAktifDisplay = availableMkResponse.matakuliah.first.semesterPelaksanaan ?? "N/A"; 
           } else {
             _tahunAjaranAktif = "N/A";
@@ -200,25 +196,21 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
       _showErrorSnackbar('Silakan pilih mata kuliah terlebih dahulu.');
       return;
     }
-    if (_isSubmitting) return; // Mencegah multiple submissions
+    if (_isSubmitting) return;
 
-    // Cek apakah mata kuliah sudah ada di FRS yang diambil mahasiswa
     bool alreadyExists = _matakuliahDiambil.any((item) =>
         (item.jadwalKuliah?.idJadwal == _selectedMatakuliahTersediaId) ||
-        (item.jadwalKuliah?.masterMatakuliah?.idMasterMk == _selectedMatakuliahTersediaId) // Untuk FRS item dari createFRS response
+        (item.jadwalKuliah?.masterMatakuliah?.idMasterMk == _selectedMatakuliahTersediaId)
     );
 
     if (alreadyExists) {
-      String mkNameToDisplay = "Mata kuliah yang dipilih"; // Default
+      String mkNameToDisplay = "Mata kuliah yang dipilih";
       try {
-        // Mencoba mendapatkan nama MK dari daftar yang tersedia untuk pesan error
         final selectedMkFromAvailableList = _matakuliahTersedia.firstWhere(
           (mk) => mk.idMkJadwal == _selectedMatakuliahTersediaId,
         );
         mkNameToDisplay = selectedMkFromAvailableList.namaMk;
       } catch (e) {
-        // Jika tidak ketemu di _matakuliahTersedia (seharusnya tidak terjadi jika ID valid)
-        // kita bisa coba cari dari _matakuliahDiambil karena sudah dipastikan ada.
         try {
           final existingFrsItem = _matakuliahDiambil.firstWhere((item) =>
               (item.jadwalKuliah?.idJadwal == _selectedMatakuliahTersediaId));
@@ -233,7 +225,6 @@ class _MahasiswaFrsPageState extends State<MahasiswaFrsPage>
       return;
     }
 
-    // Dapatkan detail mata kuliah yang akan ditambahkan
     AvailableMatakuliahItem? mkToAdd;
     try {
       mkToAdd = _matakuliahTersedia.firstWhere((mk) => mk.idMkJadwal == _selectedMatakuliahTersediaId);
